@@ -28,10 +28,21 @@ export class MonitorObject extends DurableObject {
     }
 
     if (url.pathname === '/check' && request.method === 'POST') {
-      const result = await this.check();
-      return new Response(JSON.stringify(result), {
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const force = url.searchParams.get('force') === 'true';
+
+      if (force) {
+        // Shared Lifecycle: Check -> DB -> State
+        const result = await this.performCheckLifecycle();
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } else {
+        // Probe only: Check -> Return
+        const result = await this.check();
+        return new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     if (url.pathname === '/delete' && request.method === 'POST') {
@@ -57,8 +68,21 @@ export class MonitorObject extends DurableObject {
 
     if (!this.config || !this.config.enabled) return;
 
+    // Shared Lifecycle
+    await this.performCheckLifecycle();
+
+    // Loop
+    await this.scheduleAlarm();
+  }
+
+  /**
+   * Encapsulates the full "Check -> Record -> Update State" workflow
+   */
+  async performCheckLifecycle(): Promise<CheckResult> {
+    // 1. Execute Check
     const result = await this.check();
 
+    // 2. Persist Result
     const db = createDb(this.env.DB);
     await db.insert(checkResults).values({
       id: ulid(),
@@ -70,8 +94,10 @@ export class MonitorObject extends DurableObject {
       checkedAt: result.checkedAt,
     });
 
+    // 3. Update State Machine
     await this.updateState(result, db);
-    await this.scheduleAlarm();
+
+    return result;
   }
 
   async updateState(result: CheckResult, db: ReturnType<typeof createDb>) {
@@ -80,7 +106,6 @@ export class MonitorObject extends DurableObject {
     let newStatus: MonitorStatus = this.config.status;
     const currentStatus = this.config.status;
 
-    // State Machine Logic (Same as before)
     if (result.status === 'DOWN') {
       this.consecutiveSuccesses = 0;
       this.consecutiveFailures++;
@@ -111,13 +136,11 @@ export class MonitorObject extends DurableObject {
       }
     }
 
-    // Handle State Transition
     if (newStatus !== currentStatus) {
       console.log(
         `[${this.config.name}] State change: ${currentStatus} -> ${newStatus}`,
       );
 
-      // 1. Update Monitor Status
       await db
         .update(monitors)
         .set({
@@ -126,9 +149,7 @@ export class MonitorObject extends DurableObject {
         })
         .where(eq(monitors.id, this.config.id));
 
-      // 2. Manage Incidents
       if (newStatus === 'DOWN') {
-        // OPEN new incident
         await db.insert(incidents).values({
           id: ulid(),
           monitorId: this.config.id,
@@ -139,8 +160,6 @@ export class MonitorObject extends DurableObject {
         newStatus === 'UP' &&
         (currentStatus === 'DOWN' || currentStatus === 'RECOVERING')
       ) {
-        // CLOSE active incident
-        // Find the most recent open incident for this monitor
         const openIncident = await db
           .select()
           .from(incidents)
@@ -175,8 +194,6 @@ export class MonitorObject extends DurableObject {
       .get();
 
     if (result) {
-      // Drizzle returns 'unknown' for JSON columns and 'string' for text columns
-      // We cast them to our strict MonitorConfig types
       this.config = {
         ...result,
         headers: result.headers as Record<string, string> | null,

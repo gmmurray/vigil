@@ -73,10 +73,16 @@ app.get('/:id', async c => {
 
 app.post('/:id/check', async c => {
   const id = c.req.param('id');
+  const { force } = c.req.query(); // Get query param
+
   const doId = c.env.MONITOR.idFromName(id);
   const stub = c.env.MONITOR.get(doId);
 
-  const response = await stub.fetch('http://do/check', {
+  // Pass it along to the DO
+  const doUrl =
+    force === 'true' ? 'http://do/check?force=true' : 'http://do/check';
+
+  const response = await stub.fetch(doUrl, {
     method: 'POST',
   });
 
