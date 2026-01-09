@@ -1,8 +1,8 @@
-import { eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { createDb } from '../db';
-import { monitors } from '../schema';
+import { checkResults, incidents, monitors } from '../schema';
 import type { MonitorConfig } from '../types';
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
@@ -86,6 +86,71 @@ app.post('/:id/check', async c => {
 
   const result = await response.json();
   return c.json(result);
+});
+
+app.get('/:id/checks', async c => {
+  const id = c.req.param('id');
+  const { limit, offset } = c.req.query();
+  const db = createDb(c.env.DB);
+
+  const limitVal = Math.min(parseInt(limit || '100'), 500); // Cap at 500
+  const offsetVal = parseInt(offset || '0');
+
+  // Verify monitor exists first (optional, but good for 404s)
+  // Skipped for performance to just return empty list if ID invalid,
+  // or you can do a quick count check.
+
+  const checks = await db
+    .select()
+    .from(checkResults)
+    .where(eq(checkResults.monitorId, id))
+    .orderBy(desc(checkResults.checkedAt))
+    .limit(limitVal)
+    .offset(offsetVal)
+    .all();
+
+  return c.json({
+    data: checks,
+    meta: {
+      monitorId: id,
+      limit: limitVal,
+      offset: offsetVal,
+    },
+  });
+});
+
+// Get incidents for a specific monitor (Convenience route per spec)
+app.get('/:id/incidents', async c => {
+  const id = c.req.param('id');
+  const { active, limit, offset } = c.req.query();
+  const db = createDb(c.env.DB);
+
+  const limitVal = parseInt(limit || '50');
+  const offsetVal = parseInt(offset || '0');
+
+  const conditions = [eq(incidents.monitorId, id)];
+
+  if (active === 'true') {
+    conditions.push(isNull(incidents.endedAt));
+  }
+
+  const monitorIncidents = await db
+    .select()
+    .from(incidents)
+    .where(and(...conditions))
+    .orderBy(desc(incidents.startedAt))
+    .limit(limitVal)
+    .offset(offsetVal)
+    .all();
+
+  return c.json({
+    data: monitorIncidents,
+    meta: {
+      monitorId: id,
+      limit: limitVal,
+      offset: offsetVal,
+    },
+  });
 });
 
 app.put('/:id', async c => {

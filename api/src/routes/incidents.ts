@@ -1,40 +1,54 @@
-import { desc } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
+
 import { Hono } from 'hono';
 import { createDb } from '../db';
 import { incidents } from '../schema';
 
-type Bindings = {
-  DB: D1Database;
-};
+const app = new Hono<{ Bindings: CloudflareBindings }>();
 
-const app = new Hono<{ Bindings: Bindings }>();
-
-// List all incidents (Global view)
+// GET /incidents
+// Query Params:
+//   - active (boolean): if true, only return ongoing incidents
+//   - monitorId (string): filter by monitor
+//   - limit (number): default 50
+//   - offset (number): default 0
 app.get('/', async c => {
   const db = createDb(c.env.DB);
-  const result = await db
-    .select()
-    .from(incidents)
-    .orderBy(desc(incidents.startedAt))
-    .limit(50); // Hard limit for now
-  return c.json(result);
-});
+  const { active, monitorId, limit, offset } = c.req.query();
 
-// Get active incidents only
-app.get('/active', async c => {
-  const db = createDb(c.env.DB);
-  // Drizzle doesn't export isNull helper easily in all contexts,
-  // but we can query where endedAt is null.
+  const limitVal = parseInt(limit || '50');
+  const offsetVal = parseInt(offset || '0');
+
+  const conditions = [];
+
+  if (active === 'true') {
+    conditions.push(isNull(incidents.endedAt));
+  }
+
+  if (monitorId) {
+    conditions.push(eq(incidents.monitorId, monitorId));
+  }
+
   const result = await db
     .select()
     .from(incidents)
+    .where(and(...conditions))
     .orderBy(desc(incidents.startedAt))
+    .limit(limitVal)
+    .offset(offsetVal)
     .all();
 
-  // Filter in memory for simplicity or use specific where clause if available in your drizzle version imports
-  const active = result.filter(i => i.endedAt === null);
+  // Get total count for pagination metadata (optional but helpful)
+  // const total = await db.select({ count: sql<number>`count(*)` }).from(incidents).where(and(...conditions)).get();
 
-  return c.json(active);
+  return c.json({
+    data: result,
+    meta: {
+      limit: limitVal,
+      offset: offsetVal,
+      // total: total?.count || 0
+    },
+  });
 });
 
 export default app;
