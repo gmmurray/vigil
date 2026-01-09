@@ -6,7 +6,6 @@ import { checkResults, monitors } from './schema';
 
 interface MonitorConfig {
   id: string;
-  name: string;
   url: string;
   method: string;
   intervalSeconds: number;
@@ -15,6 +14,8 @@ interface MonitorConfig {
   expectedStatus: string;
   headers: Record<string, string> | null;
   body: string | null;
+  name: string;
+  status: string; // Track current status in config
 }
 
 export interface CheckResult {
@@ -28,6 +29,11 @@ export interface CheckResult {
 
 export class MonitorObject extends DurableObject {
   private config: MonitorConfig | null = null;
+
+  // State Machine Counters
+  private consecutiveFailures = 0;
+  private consecutiveSuccesses = 0;
+  private readonly THRESHOLD = 3;
 
   constructor(ctx: DurableObjectState, env: CloudflareBindings) {
     super(ctx, env);
@@ -51,22 +57,21 @@ export class MonitorObject extends DurableObject {
       });
     }
 
-    if (url.pathname === '/stop' && request.method === 'POST') {
-      await this.ctx.storage.deleteAlarm();
-      return new Response('Monitor stopped');
-    }
-
     if (url.pathname === '/delete' && request.method === 'POST') {
       await this.ctx.storage.deleteAlarm();
       await this.ctx.storage.deleteAll();
       return new Response('Monitor deleted');
     }
 
+    if (url.pathname === '/stop' && request.method === 'POST') {
+      await this.ctx.storage.deleteAlarm();
+      return new Response('Monitor stopped');
+    }
+
     return new Response('Vigil Monitor DO', { status: 404 });
   }
 
   async alarm() {
-    // 1. Load Config
     if (!this.config) {
       const monitorId = await this.ctx.storage.get<string>('monitorId');
       if (monitorId) await this.refreshConfig(monitorId);
@@ -75,12 +80,10 @@ export class MonitorObject extends DurableObject {
 
     if (!this.config || !this.config.enabled) return;
 
-    // 2. Execute Check
+    // 1. Execute Check
     const result = await this.check();
 
-    // 3. Persist Result to D1
-    // We do this asynchronously so we don't block the alarm rescheduling logic unnecessarily,
-    // though in a DO, await is usually safer to ensure completion before the isolate potentially sleeps.
+    // 2. Persist Result
     const db = createDb(this.env.DB);
     await db.insert(checkResults).values({
       id: ulid(),
@@ -92,13 +95,70 @@ export class MonitorObject extends DurableObject {
       checkedAt: result.checkedAt,
     });
 
-    // Log for verification
-    console.log(
-      `[${this.config.name || this.config.id}] Result saved: ${result.status}`,
-    );
+    // 3. Update State Machine
+    await this.updateState(result, db);
 
     // 4. Schedule next
     await this.scheduleAlarm();
+  }
+
+  async updateState(result: CheckResult, db: ReturnType<typeof createDb>) {
+    if (!this.config) return;
+
+    let newStatus = this.config.status;
+    const currentStatus = this.config.status;
+
+    if (result.status === 'DOWN') {
+      this.consecutiveSuccesses = 0;
+      this.consecutiveFailures++;
+
+      if (currentStatus === 'UP' || currentStatus === 'RECOVERING') {
+        newStatus = 'DEGRADED';
+      } else if (
+        currentStatus === 'DEGRADED' &&
+        this.consecutiveFailures >= this.THRESHOLD
+      ) {
+        newStatus = 'DOWN';
+      } else if (currentStatus === 'DOWN') {
+        // Stay DOWN
+        newStatus = 'DOWN';
+      }
+    } else {
+      // Result is UP
+      this.consecutiveFailures = 0;
+      this.consecutiveSuccesses++;
+
+      if (currentStatus === 'DOWN') {
+        newStatus = 'RECOVERING';
+      } else if (
+        currentStatus === 'RECOVERING' &&
+        this.consecutiveSuccesses >= this.THRESHOLD
+      ) {
+        newStatus = 'UP';
+      } else if (currentStatus === 'DEGRADED') {
+        // Instant recovery from degraded if 1 success (or we can enforce threshold here too)
+        // For now, let's say 1 success clears DEGRADED.
+        newStatus = 'UP';
+      }
+    }
+
+    // Persist State Change
+    if (newStatus !== currentStatus) {
+      console.log(
+        `[${this.config.name}] State change: ${currentStatus} -> ${newStatus}`,
+      );
+
+      await db
+        .update(monitors)
+        .set({
+          status: newStatus,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(monitors.id, this.config.id));
+
+      // Update local config cache
+      this.config.status = newStatus;
+    }
   }
 
   async refreshConfig(monitorId: string) {
@@ -120,6 +180,7 @@ export class MonitorObject extends DurableObject {
         expectedStatus: result.expectedStatus,
         headers: result.headers as Record<string, string> | null,
         body: result.body,
+        status: result.status, // Load persisted status
         name: result.name,
       };
     } else {
@@ -128,16 +189,14 @@ export class MonitorObject extends DurableObject {
   }
 
   async scheduleAlarm() {
-    if (this.config?.enabled) {
+    if (this.config && this.config.enabled) {
       const nextTime = Date.now() + this.config.intervalSeconds * 1000;
       await this.ctx.storage.setAlarm(nextTime);
     }
   }
 
   async check(): Promise<CheckResult> {
-    if (!this.config) {
-      throw new Error('Config missing during check execution');
-    }
+    if (!this.config) throw new Error('Config missing');
 
     const start = Date.now();
     let status: 'UP' | 'DOWN' = 'DOWN';
@@ -161,7 +220,6 @@ export class MonitorObject extends DurableObject {
       clearTimeout(timeoutId);
       statusCode = resp.status;
 
-      // Parse expected status (e.g., "200,201")
       const validCodes = this.config.expectedStatus
         .split(',')
         .map(s => parseInt(s.trim()));
@@ -173,10 +231,8 @@ export class MonitorObject extends DurableObject {
       }
     } catch (e: unknown) {
       if (e instanceof Error) {
-        // Handle AbortError specifically, otherwise use the error message
         error = e.name === 'AbortError' ? 'Timeout' : e.message;
       } else {
-        // Fallback for non-standard errors (very rare in fetch)
         error = 'Network Error';
       }
     }
