@@ -70,16 +70,39 @@ app.get('/:id', async c => {
   return c.json(result);
 });
 
+app.post('/:id/check', async c => {
+  const id = c.req.param('id');
+  const doId = c.env.MONITOR.idFromName(id);
+  const stub = c.env.MONITOR.get(doId);
+
+  const response = await stub.fetch('http://do/check', {
+    method: 'POST',
+  });
+
+  if (!response.ok) {
+    return c.json({ error: 'Check failed execution' }, 500);
+  }
+
+  const result = await response.json();
+  return c.json(result);
+});
+
 // Delete a monitor
 app.delete('/:id', async c => {
   const id = c.req.param('id');
   const db = createDb(c.env.DB);
 
+  // 1. Delete from D1
   const result = await db.delete(monitors).where(eq(monitors.id, id)).run();
 
   if (result.meta.changes === 0) {
     return c.json({ error: 'Monitor not found' }, 404);
   }
+
+  // 2. Clean up Durable Object (Wipe storage & alarm)
+  const doId = c.env.MONITOR.idFromName(id);
+  const stub = c.env.MONITOR.get(doId);
+  await stub.fetch('http://do/delete', { method: 'POST' });
 
   return c.json({ success: true });
 });
