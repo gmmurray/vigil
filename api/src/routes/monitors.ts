@@ -4,12 +4,7 @@ import { ulid } from 'ulid';
 import { createDb } from '../db';
 import { monitors } from '../schema';
 
-// Define binding type locally to avoid circular deps if you move types out later
-type Bindings = {
-  DB: D1Database;
-};
-
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<{ Bindings: CloudflareBindings }>();
 
 // List all monitors
 app.get('/', async c => {
@@ -43,6 +38,16 @@ app.post('/', async c => {
   };
 
   await db.insert(monitors).values(newMonitor);
+
+  // Initialize the Durable Object
+  const id = c.env.MONITOR.idFromName(newMonitor.id);
+  const stub = c.env.MONITOR.get(id);
+
+  // Fire and forget (awaiting ensures it's received, but we don't need the response body)
+  await stub.fetch('http://do/init', {
+    method: 'POST',
+    body: JSON.stringify({ monitorId: newMonitor.id }),
+  });
 
   return c.json(newMonitor, 201);
 });
