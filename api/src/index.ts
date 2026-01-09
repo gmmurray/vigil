@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { MonitorObject } from './monitor';
+import incidents from './routes/incidents';
 import monitors from './routes/monitors';
 
 export { MonitorObject };
@@ -12,5 +13,6 @@ app.get('/', c => {
 
 // Mount sub-apps
 app.route('/monitors', monitors);
+app.route('/incidents', incidents);
 
 export default app;

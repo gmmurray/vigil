@@ -1,8 +1,8 @@
 import { DurableObject } from 'cloudflare:workers';
-import { eq } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { createDb } from './db';
-import { checkResults, monitors } from './schema';
+import { checkResults, incidents, monitors } from './schema';
 import type { CheckResult, MonitorConfig, MonitorStatus } from './types';
 
 export class MonitorObject extends DurableObject {
@@ -80,6 +80,7 @@ export class MonitorObject extends DurableObject {
     let newStatus: MonitorStatus = this.config.status;
     const currentStatus = this.config.status;
 
+    // State Machine Logic (Same as before)
     if (result.status === 'DOWN') {
       this.consecutiveSuccesses = 0;
       this.consecutiveFailures++;
@@ -110,11 +111,13 @@ export class MonitorObject extends DurableObject {
       }
     }
 
+    // Handle State Transition
     if (newStatus !== currentStatus) {
       console.log(
         `[${this.config.name}] State change: ${currentStatus} -> ${newStatus}`,
       );
 
+      // 1. Update Monitor Status
       await db
         .update(monitors)
         .set({
@@ -122,6 +125,42 @@ export class MonitorObject extends DurableObject {
           updatedAt: new Date().toISOString(),
         })
         .where(eq(monitors.id, this.config.id));
+
+      // 2. Manage Incidents
+      if (newStatus === 'DOWN') {
+        // OPEN new incident
+        await db.insert(incidents).values({
+          id: ulid(),
+          monitorId: this.config.id,
+          startedAt: new Date().toISOString(),
+          cause: result.error || `Status Code: ${result.statusCode}`,
+        });
+      } else if (
+        newStatus === 'UP' &&
+        (currentStatus === 'DOWN' || currentStatus === 'RECOVERING')
+      ) {
+        // CLOSE active incident
+        // Find the most recent open incident for this monitor
+        const openIncident = await db
+          .select()
+          .from(incidents)
+          .where(
+            and(
+              eq(incidents.monitorId, this.config.id),
+              isNull(incidents.endedAt),
+            ),
+          )
+          .orderBy(desc(incidents.startedAt))
+          .limit(1)
+          .get();
+
+        if (openIncident) {
+          await db
+            .update(incidents)
+            .set({ endedAt: new Date().toISOString() })
+            .where(eq(incidents.id, openIncident.id));
+        }
+      }
 
       this.config.status = newStatus;
     }
