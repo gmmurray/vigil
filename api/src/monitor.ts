@@ -3,34 +3,11 @@ import { eq } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { createDb } from './db';
 import { checkResults, monitors } from './schema';
-
-interface MonitorConfig {
-  id: string;
-  url: string;
-  method: string;
-  intervalSeconds: number;
-  timeoutMs: number;
-  enabled: number;
-  expectedStatus: string;
-  headers: Record<string, string> | null;
-  body: string | null;
-  name: string;
-  status: string; // Track current status in config
-}
-
-export interface CheckResult {
-  monitorId: string;
-  status: 'UP' | 'DOWN';
-  responseTimeMs: number;
-  statusCode: number | null;
-  error: string | null;
-  checkedAt: string;
-}
+import type { CheckResult, MonitorConfig, MonitorStatus } from './types';
 
 export class MonitorObject extends DurableObject {
   private config: MonitorConfig | null = null;
 
-  // State Machine Counters
   private consecutiveFailures = 0;
   private consecutiveSuccesses = 0;
   private readonly THRESHOLD = 3;
@@ -80,10 +57,8 @@ export class MonitorObject extends DurableObject {
 
     if (!this.config || !this.config.enabled) return;
 
-    // 1. Execute Check
     const result = await this.check();
 
-    // 2. Persist Result
     const db = createDb(this.env.DB);
     await db.insert(checkResults).values({
       id: ulid(),
@@ -95,17 +70,14 @@ export class MonitorObject extends DurableObject {
       checkedAt: result.checkedAt,
     });
 
-    // 3. Update State Machine
     await this.updateState(result, db);
-
-    // 4. Schedule next
     await this.scheduleAlarm();
   }
 
   async updateState(result: CheckResult, db: ReturnType<typeof createDb>) {
     if (!this.config) return;
 
-    let newStatus = this.config.status;
+    let newStatus: MonitorStatus = this.config.status;
     const currentStatus = this.config.status;
 
     if (result.status === 'DOWN') {
@@ -120,11 +92,9 @@ export class MonitorObject extends DurableObject {
       ) {
         newStatus = 'DOWN';
       } else if (currentStatus === 'DOWN') {
-        // Stay DOWN
         newStatus = 'DOWN';
       }
     } else {
-      // Result is UP
       this.consecutiveFailures = 0;
       this.consecutiveSuccesses++;
 
@@ -136,13 +106,10 @@ export class MonitorObject extends DurableObject {
       ) {
         newStatus = 'UP';
       } else if (currentStatus === 'DEGRADED') {
-        // Instant recovery from degraded if 1 success (or we can enforce threshold here too)
-        // For now, let's say 1 success clears DEGRADED.
         newStatus = 'UP';
       }
     }
 
-    // Persist State Change
     if (newStatus !== currentStatus) {
       console.log(
         `[${this.config.name}] State change: ${currentStatus} -> ${newStatus}`,
@@ -156,7 +123,6 @@ export class MonitorObject extends DurableObject {
         })
         .where(eq(monitors.id, this.config.id));
 
-      // Update local config cache
       this.config.status = newStatus;
     }
   }
@@ -170,18 +136,12 @@ export class MonitorObject extends DurableObject {
       .get();
 
     if (result) {
+      // Drizzle returns 'unknown' for JSON columns and 'string' for text columns
+      // We cast them to our strict MonitorConfig types
       this.config = {
-        id: result.id,
-        url: result.url,
-        method: result.method,
-        intervalSeconds: result.intervalSeconds,
-        timeoutMs: result.timeoutMs,
-        enabled: result.enabled,
-        expectedStatus: result.expectedStatus,
+        ...result,
         headers: result.headers as Record<string, string> | null,
-        body: result.body,
-        status: result.status, // Load persisted status
-        name: result.name,
+        status: result.status as MonitorStatus,
       };
     } else {
       this.config = null;
@@ -246,6 +206,7 @@ export class MonitorObject extends DurableObject {
       statusCode,
       error,
       checkedAt: new Date().toISOString(),
+      id: ulid(),
     };
   }
 }

@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { createDb } from '../db';
 import { monitors } from '../schema';
+import type { MonitorConfig } from '../types';
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
@@ -85,6 +86,51 @@ app.post('/:id/check', async c => {
 
   const result = await response.json();
   return c.json(result);
+});
+
+app.put('/:id', async c => {
+  const id = c.req.param('id');
+  const db = createDb(c.env.DB);
+  const body = await c.req.json();
+
+  // 1. Validate existence
+  const existing = await db
+    .select()
+    .from(monitors)
+    .where(eq(monitors.id, id))
+    .get();
+  if (!existing) {
+    return c.json({ error: 'Monitor not found' }, 404);
+  }
+
+  // 2. Prepare update data (partial updates allowed)
+  const updateData: Partial<MonitorConfig> = {
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (body.name) updateData.name = body.name;
+  if (body.url) updateData.url = body.url;
+  if (body.method) updateData.method = body.method;
+  if (body.intervalSeconds) updateData.intervalSeconds = body.intervalSeconds;
+  if (body.timeoutMs) updateData.timeoutMs = body.timeoutMs;
+  if (body.expectedStatus) updateData.expectedStatus = body.expectedStatus;
+  if (body.headers !== undefined) updateData.headers = body.headers;
+  if (body.body !== undefined) updateData.body = body.body;
+  if (body.enabled !== undefined) updateData.enabled = body.enabled;
+
+  // 3. Update DB
+  await db.update(monitors).set(updateData).where(eq(monitors.id, id)).run();
+
+  // 4. Notify Durable Object to refresh config
+  const doId = c.env.MONITOR.idFromName(id);
+  const stub = c.env.MONITOR.get(doId);
+
+  await stub.fetch('http://do/init', {
+    method: 'POST',
+    body: JSON.stringify({ monitorId: id }),
+  });
+
+  return c.json({ success: true, ...updateData });
 });
 
 // Delete a monitor

@@ -1,24 +1,21 @@
+import type { InferInsertModel, InferSelectModel } from 'drizzle-orm';
+import type { checkResults, incidents, monitors } from './schema';
+
+// 1. Define strict Enums/Unions that SQLite just sees as "text"
 export type MonitorStatus = 'UP' | 'DOWN' | 'DEGRADED' | 'RECOVERING';
 
-export interface MonitorConfig {
-  id: string;
-  name: string;
-  url: string;
-  method: string;
-  intervalSeconds: number;
-  timeoutMs: number;
-  enabled: number; // 0 or 1
-  expectedStatus: string;
-  headers: Record<string, string> | null;
-  body: string | null;
-  status: MonitorStatus;
-}
+// 2. Infer Base Database Models
+export type Monitor = InferSelectModel<typeof monitors>;
+export type CheckResult = InferSelectModel<typeof checkResults>;
+export type Incident = InferSelectModel<typeof incidents>;
 
-export interface CheckResult {
-  monitorId: string;
-  status: 'UP' | 'DOWN';
-  responseTimeMs: number;
-  statusCode: number | null;
-  error: string | null;
-  checkedAt: string;
+// 3. Define Insert Models (useful for API request bodies)
+export type NewMonitor = InferInsertModel<typeof monitors>;
+export type NewCheckResult = InferInsertModel<typeof checkResults>;
+
+// 4. Define DO Internal Config
+// We extend the DB model but narrow types where Drizzle is loose (like 'json' fields or 'text' enums)
+export interface MonitorConfig extends Omit<Monitor, 'status' | 'headers'> {
+  status: MonitorStatus;
+  headers: Record<string, string> | null;
 }
