@@ -33,6 +33,7 @@ export class MonitorObject extends DurableObject {
 
       if (force) {
         // Full lifecycle: check endpoint, record result, update state
+        await this.loadCounters();
         const result = await this.performCheckLifecycle();
         return new Response(JSON.stringify(result), {
           headers: { 'Content-Type': 'application/json' },
@@ -69,8 +70,24 @@ export class MonitorObject extends DurableObject {
 
     if (!this.config || !this.config.enabled) return;
 
+    await this.loadCounters();
     await this.performCheckLifecycle();
     await this.scheduleAlarm();
+  }
+
+  async loadCounters() {
+    this.consecutiveFailures =
+      (await this.ctx.storage.get<number>('consecutiveFailures')) ?? 0;
+    this.consecutiveSuccesses =
+      (await this.ctx.storage.get<number>('consecutiveSuccesses')) ?? 0;
+  }
+
+  async saveCounters() {
+    await this.ctx.storage.put('consecutiveFailures', this.consecutiveFailures);
+    await this.ctx.storage.put(
+      'consecutiveSuccesses',
+      this.consecutiveSuccesses,
+    );
   }
 
   // Full check lifecycle: execute health check, persist result, update monitor state
@@ -179,6 +196,8 @@ export class MonitorObject extends DurableObject {
 
       this.config.status = newStatus;
     }
+
+    await this.saveCounters();
   }
 
   async notify(
