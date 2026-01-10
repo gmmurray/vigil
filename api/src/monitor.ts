@@ -2,7 +2,12 @@ import { DurableObject } from 'cloudflare:workers';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { createDb } from './db';
-import { checkResults, incidents, monitors } from './schema';
+import {
+  checkResults,
+  incidents,
+  monitors,
+  notificationChannels,
+} from './schema';
 import type { CheckResult, MonitorConfig, MonitorStatus } from './types';
 
 export class MonitorObject extends DurableObject {
@@ -109,31 +114,23 @@ export class MonitorObject extends DurableObject {
     if (result.status === 'DOWN') {
       this.consecutiveSuccesses = 0;
       this.consecutiveFailures++;
-
-      if (currentStatus === 'UP' || currentStatus === 'RECOVERING') {
+      if (currentStatus === 'UP' || currentStatus === 'RECOVERING')
         newStatus = 'DEGRADED';
-      } else if (
+      else if (
         currentStatus === 'DEGRADED' &&
         this.consecutiveFailures >= this.THRESHOLD
-      ) {
+      )
         newStatus = 'DOWN';
-      } else if (currentStatus === 'DOWN') {
-        newStatus = 'DOWN';
-      }
     } else {
       this.consecutiveFailures = 0;
       this.consecutiveSuccesses++;
-
-      if (currentStatus === 'DOWN') {
-        newStatus = 'RECOVERING';
-      } else if (
+      if (currentStatus === 'DOWN') newStatus = 'RECOVERING';
+      else if (
         currentStatus === 'RECOVERING' &&
         this.consecutiveSuccesses >= this.THRESHOLD
-      ) {
+      )
         newStatus = 'UP';
-      } else if (currentStatus === 'DEGRADED') {
-        newStatus = 'UP';
-      }
+      else if (currentStatus === 'DEGRADED') newStatus = 'UP';
     }
 
     if (newStatus !== currentStatus) {
@@ -143,15 +140,16 @@ export class MonitorObject extends DurableObject {
 
       await db
         .update(monitors)
-        .set({
-          status: newStatus,
-          updatedAt: new Date().toISOString(),
-        })
+        .set({ status: newStatus, updatedAt: new Date().toISOString() })
         .where(eq(monitors.id, this.config.id));
 
+      let incidentId: string | null = null;
+
+      // Manage Incidents
       if (newStatus === 'DOWN') {
+        incidentId = ulid();
         await db.insert(incidents).values({
-          id: ulid(),
+          id: incidentId,
           monitorId: this.config.id,
           startedAt: new Date().toISOString(),
           cause: result.error || `Status Code: ${result.statusCode}`,
@@ -160,6 +158,7 @@ export class MonitorObject extends DurableObject {
         newStatus === 'UP' &&
         (currentStatus === 'DOWN' || currentStatus === 'RECOVERING')
       ) {
+        // Resolve Incident
         const openIncident = await db
           .select()
           .from(incidents)
@@ -174,15 +173,77 @@ export class MonitorObject extends DurableObject {
           .get();
 
         if (openIncident) {
+          incidentId = openIncident.id;
           await db
             .update(incidents)
             .set({ endedAt: new Date().toISOString() })
-            .where(eq(incidents.id, openIncident.id));
+            .where(eq(incidents.id, incidentId));
         }
+      }
+
+      // Trigger Notifications for key transitions (DOWN or Recovery to UP)
+      if (
+        newStatus === 'DOWN' ||
+        (newStatus === 'UP' && currentStatus !== 'DEGRADED')
+      ) {
+        await this.notify(newStatus, incidentId, result, db);
       }
 
       this.config.status = newStatus;
     }
+  }
+
+  async notify(
+    event: 'UP' | 'DOWN',
+    incidentId: string | null,
+    result: CheckResult,
+    db: ReturnType<typeof createDb>,
+  ) {
+    // 1. Fetch enabled channels
+    const channels = await db
+      .select()
+      .from(notificationChannels)
+      .where(eq(notificationChannels.enabled, 1))
+      .all();
+
+    if (channels.length === 0) return;
+
+    // 2. Prepare Payload
+    const payload = {
+      monitor: {
+        id: this.config?.id,
+        name: this.config?.name,
+        url: this.config?.url,
+      },
+      event: event,
+      incident_id: incidentId,
+      timestamp: new Date().toISOString(),
+      details: {
+        status_code: result.statusCode,
+        error: result.error,
+        response_time: result.responseTimeMs,
+      },
+    };
+
+    // 3. Dispatch (in parallel)
+    await Promise.allSettled(
+      channels.map(async channel => {
+        // Cast config since Drizzle types it generically as unknown or JSON
+        const config = channel.config as { url?: string };
+
+        if (channel.type === 'WEBHOOK' && config.url) {
+          try {
+            await fetch(config.url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+          } catch (err) {
+            console.error(`Failed to notify channel ${channel.id}:`, err);
+          }
+        }
+      }),
+    );
   }
 
   async refreshConfig(monitorId: string) {
