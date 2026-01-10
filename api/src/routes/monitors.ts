@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { createDb } from '../db';
@@ -156,6 +156,44 @@ app.get('/:id/incidents', async c => {
       limit: limitVal,
       offset: offsetVal,
     },
+  });
+});
+
+app.get('/:id/stats', async c => {
+  const id = c.req.param('id');
+  const db = createDb(c.env.DB);
+
+  // Default to 24 hours ago
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  // We use raw SQL for aggregations as Drizzle's query builder is sometimes verbose for this
+  const stats = await db
+    .select({
+      totalChecks: sql<number>`count(*)`,
+      upChecks: sql<number>`sum(case when ${checkResults.status} = 'UP' then 1 else 0 end)`,
+      avgResponseTime: sql<number>`avg(${checkResults.responseTimeMs})`,
+    })
+    .from(checkResults)
+    .where(
+      and(
+        eq(checkResults.monitorId, id),
+        sql`${checkResults.checkedAt} >= ${since}`,
+      ),
+    )
+    .get();
+
+  const total = stats?.totalChecks || 0;
+  const up = stats?.upChecks || 0;
+
+  // Calculate percentage
+  const uptime = total > 0 ? (up / total) * 100 : 0;
+
+  return c.json({
+    monitorId: id,
+    period: '24h',
+    uptime: Number(uptime.toFixed(2)), // Format to 2 decimal places
+    avgResponseTime: Math.round(stats?.avgResponseTime || 0),
+    totalChecks: total,
   });
 });
 
