@@ -99,8 +99,8 @@ app.get('/:id/checks', async c => {
   const { limit, offset } = c.req.query();
   const db = createDb(c.env.DB);
 
-  const limitVal = Math.min(parseInt(limit || '100'), 500); // Cap at 500
-  const offsetVal = parseInt(offset || '0');
+  const limitVal = Math.min(parseInt(limit || '100', 10), 500); // Cap at 500
+  const offsetVal = parseInt(offset || '0', 10);
 
   // Verify monitor exists first (optional, but good for 404s)
   // Skipped for performance to just return empty list if ID invalid,
@@ -131,8 +131,8 @@ app.get('/:id/incidents', async c => {
   const { active, limit, offset } = c.req.query();
   const db = createDb(c.env.DB);
 
-  const limitVal = parseInt(limit || '50');
-  const offsetVal = parseInt(offset || '0');
+  const limitVal = parseInt(limit || '50', 10);
+  const offsetVal = parseInt(offset || '0', 10);
 
   const conditions = [eq(incidents.monitorId, id)];
 

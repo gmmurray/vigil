@@ -16,8 +16,8 @@ app.get('/', async c => {
   const db = createDb(c.env.DB);
   const { active, monitorId, limit, offset } = c.req.query();
 
-  const limitVal = parseInt(limit || '50');
-  const offsetVal = parseInt(offset || '0');
+  const limitVal = parseInt(limit || '50', 10);
+  const offsetVal = parseInt(offset || '0', 10);
 
   const conditions = [];
 

@@ -17,10 +17,6 @@ export class MonitorObject extends DurableObject {
   private consecutiveSuccesses = 0;
   private readonly THRESHOLD = 3;
 
-  constructor(ctx: DurableObjectState, env: CloudflareBindings) {
-    super(ctx, env);
-  }
-
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
@@ -266,7 +262,7 @@ export class MonitorObject extends DurableObject {
   }
 
   async scheduleAlarm() {
-    if (this.config && this.config.enabled) {
+    if (this.config?.enabled) {
       const nextTime = Date.now() + this.config.intervalSeconds * 1000;
       await this.ctx.storage.setAlarm(nextTime);
     }
@@ -299,7 +295,7 @@ export class MonitorObject extends DurableObject {
 
       const validCodes = this.config.expectedStatus
         .split(',')
-        .map(s => parseInt(s.trim()));
+        .map(s => parseInt(s.trim(), 10));
 
       if (validCodes.includes(statusCode)) {
         status = 'UP';
