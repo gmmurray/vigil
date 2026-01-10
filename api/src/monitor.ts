@@ -32,13 +32,13 @@ export class MonitorObject extends DurableObject {
       const force = url.searchParams.get('force') === 'true';
 
       if (force) {
-        // Shared Lifecycle: Check -> DB -> State
+        // Full lifecycle: check endpoint, record result, update state
         const result = await this.performCheckLifecycle();
         return new Response(JSON.stringify(result), {
           headers: { 'Content-Type': 'application/json' },
         });
       } else {
-        // Probe only: Check -> Return
+        // Probe-only: check endpoint without persisting
         const result = await this.check();
         return new Response(JSON.stringify(result), {
           headers: { 'Content-Type': 'application/json' },
@@ -69,21 +69,14 @@ export class MonitorObject extends DurableObject {
 
     if (!this.config || !this.config.enabled) return;
 
-    // Shared Lifecycle
     await this.performCheckLifecycle();
-
-    // Loop
     await this.scheduleAlarm();
   }
 
-  /**
-   * Encapsulates the full "Check -> Record -> Update State" workflow
-   */
+  // Full check lifecycle: execute health check, persist result, update monitor state
   async performCheckLifecycle(): Promise<CheckResult> {
-    // 1. Execute Check
     const result = await this.check();
 
-    // 2. Persist Result
     const db = createDb(this.env.DB);
     await db.insert(checkResults).values({
       id: ulid(),
@@ -95,12 +88,13 @@ export class MonitorObject extends DurableObject {
       checkedAt: result.checkedAt,
     });
 
-    // 3. Update State Machine
     await this.updateState(result, db);
 
     return result;
   }
 
+  // State machine: UP <-> DEGRADED -> DOWN -> RECOVERING -> UP
+  // Requires THRESHOLD consecutive failures/successes for DOWN/UP transitions
   async updateState(result: CheckResult, db: ReturnType<typeof createDb>) {
     if (!this.config) return;
 
@@ -141,7 +135,6 @@ export class MonitorObject extends DurableObject {
 
       let incidentId: string | null = null;
 
-      // Manage Incidents
       if (newStatus === 'DOWN') {
         incidentId = ulid();
         await db.insert(incidents).values({
@@ -154,7 +147,6 @@ export class MonitorObject extends DurableObject {
         newStatus === 'UP' &&
         (currentStatus === 'DOWN' || currentStatus === 'RECOVERING')
       ) {
-        // Resolve Incident
         const openIncident = await db
           .select()
           .from(incidents)
@@ -177,7 +169,7 @@ export class MonitorObject extends DurableObject {
         }
       }
 
-      // Trigger Notifications for key transitions (DOWN or Recovery to UP)
+      // Send notifications for DOWN and full recovery (DEGRADED -> UP doesn't notify)
       if (
         newStatus === 'DOWN' ||
         (newStatus === 'UP' && currentStatus !== 'DEGRADED')
@@ -195,7 +187,6 @@ export class MonitorObject extends DurableObject {
     result: CheckResult,
     db: ReturnType<typeof createDb>,
   ) {
-    // 1. Fetch enabled channels
     const channels = await db
       .select()
       .from(notificationChannels)
@@ -204,7 +195,6 @@ export class MonitorObject extends DurableObject {
 
     if (channels.length === 0) return;
 
-    // 2. Prepare Payload
     const payload = {
       monitor: {
         id: this.config?.id,
@@ -221,10 +211,8 @@ export class MonitorObject extends DurableObject {
       },
     };
 
-    // 3. Dispatch (in parallel)
     await Promise.allSettled(
       channels.map(async channel => {
-        // Cast config since Drizzle types it generically as unknown or JSON
         const config = channel.config as { url?: string };
 
         if (channel.type === 'WEBHOOK' && config.url) {

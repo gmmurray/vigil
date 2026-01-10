@@ -8,14 +8,12 @@ import type { NewChannel, UpdateChannel } from '../types';
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
-// List all channels
 app.get('/', async c => {
   const db = createDb(c.env.DB);
   const result = await db.select().from(notificationChannels).all();
   return c.json(result);
 });
 
-// Create channel
 app.post('/', async c => {
   const db = createDb(c.env.DB);
   const body = (await c.req.json()) as Partial<NewChannel>;
@@ -36,7 +34,6 @@ app.post('/', async c => {
   return c.json(newChannel, 201);
 });
 
-// Update channel
 app.put('/:id', async c => {
   const id = c.req.param('id');
   const db = createDb(c.env.DB);
@@ -51,7 +48,6 @@ app.put('/:id', async c => {
     return c.json({ error: 'Channel not found' }, 404);
   }
 
-  // Construct update object explicitly to avoid 'any'
   const updateData: UpdateChannel = {};
   if (body.type) updateData.type = body.type;
   if (body.config) updateData.config = body.config;
@@ -68,7 +64,6 @@ app.put('/:id', async c => {
   return c.json({ success: true, ...updateData });
 });
 
-// Delete channel
 app.delete('/:id', async c => {
   const id = c.req.param('id');
   const db = createDb(c.env.DB);

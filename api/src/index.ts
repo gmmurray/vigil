@@ -12,7 +12,6 @@ app.get('/', c => {
   return c.text('Vigil API');
 });
 
-// Mount sub-apps
 app.route('/monitors', monitors);
 app.route('/incidents', incidents);
 app.route('/channels', channels);

@@ -6,12 +6,7 @@ import { incidents } from '../schema';
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
-// GET /incidents
-// Query Params:
-//   - active (boolean): if true, only return ongoing incidents
-//   - monitorId (string): filter by monitor
-//   - limit (number): default 50
-//   - offset (number): default 0
+// Query params: active (boolean), monitorId (string), limit (number), offset (number)
 app.get('/', async c => {
   const db = createDb(c.env.DB);
   const { active, monitorId, limit, offset } = c.req.query();
@@ -38,15 +33,11 @@ app.get('/', async c => {
     .offset(offsetVal)
     .all();
 
-  // Get total count for pagination metadata (optional but helpful)
-  // const total = await db.select({ count: sql<number>`count(*)` }).from(incidents).where(and(...conditions)).get();
-
   return c.json({
     data: result,
     meta: {
       limit: limitVal,
       offset: offsetVal,
-      // total: total?.count || 0
     },
   });
 });
