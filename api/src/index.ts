@@ -8,12 +8,18 @@ export { MonitorObject };
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
-app.get('/', c => {
-  return c.text('Vigil API');
-});
+// Root check
+app.get('/', c => c.text('Vigil API'));
 
-app.route('/monitors', monitors);
-app.route('/incidents', incidents);
-app.route('/channels', channels);
+// Create API grouping
+const api = new Hono<{ Bindings: CloudflareBindings }>();
+
+// Mount routes to API group
+api.route('/monitors', monitors);
+api.route('/incidents', incidents);
+api.route('/channels', channels);
+
+// Mount API group to main app under /api/v1
+app.route('/api/v1', api);
 
 export default app;
