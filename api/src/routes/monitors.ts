@@ -32,7 +32,7 @@ app.post('/', async c => {
     headers: body.headers || null,
     body: body.body || null,
     status: 'UP',
-    enabled: 1,
+    enabled: body.enabled === 0 ? 0 : 1,
   };
 
   await db.insert(monitors).values(newMonitor);
