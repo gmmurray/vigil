@@ -29,3 +29,11 @@ export interface CheckResult {
   error: string | null;
   checkedAt: string;
 }
+
+export interface Incident {
+  id: string;
+  monitorId: string;
+  startedAt: string;
+  endedAt: string | null;
+  cause: string | null;
+}

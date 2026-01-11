@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import type { CheckResult, Monitor } from '../types';
+import type { CheckResult, Incident, Monitor } from '../types';
 
 const API_BASE = '/api/v1';
 
@@ -54,5 +54,20 @@ export const api = {
     const res = await fetch(`${API_BASE}/monitors/${id}/checks?limit=${limit}`);
     if (!res.ok) throw new Error('Failed to fetch checks');
     return res.json() as Promise<{ data: CheckResult[] }>; // API returns { data: [], meta: {} }
+  },
+
+  fetchIncidents: async (filter?: {
+    active?: boolean;
+    monitorId?: string;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (filter?.active) params.append('active', 'true');
+    if (filter?.monitorId) params.append('monitorId', filter.monitorId);
+    if (filter?.limit) params.append('limit', filter.limit.toString());
+
+    const res = await fetch(`${API_BASE}/incidents?${params.toString()}`);
+    if (!res.ok) throw new Error('Failed to fetch incidents');
+    return res.json() as Promise<{ data: Incident[] }>;
   },
 };

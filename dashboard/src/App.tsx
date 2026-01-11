@@ -3,16 +3,10 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ConfigListView } from './components/views/ConfigListView'; // Updated import
 import { DashboardView } from './components/views/DashboardView';
+import { IncidentsView } from './components/views/IncidentsView';
 import { MonitorDetailView } from './components/views/MonitorDetailView';
 import { MonitorFormView } from './components/views/MonitorFormView'; // New import
 import { queryClient } from './lib/api';
-
-// Placeholder
-const IncidentsView = () => (
-  <div className="panel h-64 flex items-center justify-center text-gold-dim font-mono">
-    :: INCIDENTS_LOG ::
-  </div>
-);
 
 function App() {
   return (
