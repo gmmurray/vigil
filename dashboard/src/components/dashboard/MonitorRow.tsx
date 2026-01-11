@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import type { Monitor } from '../../types';
 
@@ -7,7 +8,10 @@ export function MonitorRow({ monitor }: { monitor: Monitor }) {
   const isWarn = monitor.status === 'DEGRADED';
 
   return (
-    <div className="grid grid-cols-[40px_2fr_1.5fr] border-b border-gold-faint p-5 transition-colors hover:bg-active last:border-b-0">
+    <Link
+      to={`/monitors/${monitor.id}`}
+      className="grid grid-cols-[40px_2fr_1.5fr] border-b border-gold-faint p-5 transition-colors hover:bg-active last:border-b-0 cursor-pointer group"
+    >
       {/* Status Block */}
       <div className="pt-1.5">
         <div
@@ -77,6 +81,6 @@ export function MonitorRow({ monitor }: { monitor: Monitor }) {
           <span>{monitor.intervalSeconds}s</span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

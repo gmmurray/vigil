@@ -19,3 +19,13 @@ export interface MonitorStats {
   avgResponseTime: number;
   totalChecks: number;
 }
+
+export interface CheckResult {
+  id: string;
+  monitorId: string;
+  status: string; // "UP" | "DOWN"
+  responseTimeMs: number;
+  statusCode: number;
+  error: string | null;
+  checkedAt: string;
+}
