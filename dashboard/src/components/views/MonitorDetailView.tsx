@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { cn } from '../../lib/utils';
+import { ResponseTimeChart } from '../monitors/ResponseTimeChart';
 
 export function MonitorDetailView() {
   const { id } = useParams<{ id: string }>();
@@ -73,7 +74,7 @@ export function MonitorDetailView() {
         </div>
       </div>
 
-      {/* Primary Status Card */}
+      {/* 1. Primary Status Card */}
       <div className="panel grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
         <div className="md:col-span-1">
           <div className="text-xs uppercase tracking-widest text-gold-dim mb-2">
@@ -105,7 +106,15 @@ export function MonitorDetailView() {
         </div>
       </div>
 
-      {/* Recent Activity Log */}
+      {/* 2. Response Time Chart (Stacked Below) */}
+      <div className="flex flex-col gap-2">
+        <div className="text-xs uppercase tracking-widest text-gold-dim font-medium">
+          Latency Visualization (Last 50 Checks)
+        </div>
+        <ResponseTimeChart checks={checks} />
+      </div>
+
+      {/* 3. Recent Activity Log */}
       <div className="panel p-0 overflow-hidden">
         <div className="bg-active/50 px-4 py-2 border-b border-gold-faint text-xs uppercase text-gold-dim font-medium">
           Recent Activity Log
@@ -124,11 +133,16 @@ export function MonitorDetailView() {
               {checks.map(check => (
                 <tr
                   key={check.id}
-                  className="border-b border-gold-faint/50 last:border-0 hover:bg-active/30"
+                  className="border-b border-gold-faint/50 last:border-0 hover:bg-active/30 transition-colors"
                 >
-                  <td className="p-3 text-gold-dim">
+                  {/* ADDED: title attribute for ISO timestamp on hover */}
+                  <td
+                    className="p-3 text-gold-dim cursor-help"
+                    title={check.checkedAt}
+                  >
                     {new Date(check.checkedAt).toLocaleTimeString()}
                   </td>
+
                   <td
                     className={cn(
                       'p-3',
