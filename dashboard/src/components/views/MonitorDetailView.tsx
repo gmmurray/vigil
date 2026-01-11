@@ -65,7 +65,7 @@ export function MonitorDetailView() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => navigate('/config')} // In real app, maybe pre-select this monitor in config
+            onClick={() => navigate(`/monitors/${id}/edit`)}
             className="btn-gold"
           >
             Edit Config
