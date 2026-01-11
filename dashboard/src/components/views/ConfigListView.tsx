@@ -1,10 +1,14 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+
 import { Link } from 'react-router-dom';
 import { api, queryClient } from '../../lib/api';
 import { cn } from '../../lib/utils';
 import type { Monitor } from '../../types';
+import { SearchInput } from '../ui/SearchInput';
 
 export function ConfigListView() {
+  const [search, setSearch] = useState('');
   const { data: monitors, isLoading } = useQuery<Monitor[]>({
     queryKey: ['monitors'],
     queryFn: api.fetchMonitors,
@@ -15,16 +19,31 @@ export function ConfigListView() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['monitors'] }),
   });
 
-  if (isLoading)
+  if (isLoading) {
     return (
       <div className="panel animate-pulse text-gold-dim font-mono text-center p-8">
         :: LOADING CONFIG ::
       </div>
     );
+  }
+
+  const filteredMonitors =
+    monitors?.filter(
+      m =>
+        m.name.toLowerCase().includes(search.toLowerCase()) ||
+        m.url.toLowerCase().includes(search.toLowerCase()),
+    ) || [];
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-end">
+      <div className="flex justify-between items-end">
+        {/* Left side search */}
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search config..."
+        />
+
         <Link to="/config/add" className="btn-gold active no-underline">
           + Add Monitor
         </Link>
@@ -40,7 +59,7 @@ export function ConfigListView() {
             </tr>
           </thead>
           <tbody>
-            {monitors?.map(monitor => (
+            {filteredMonitors?.map(monitor => (
               <tr
                 key={monitor.id}
                 className="border-b border-gold-faint last:border-0 hover:bg-active/30 transition-colors"
@@ -88,13 +107,10 @@ export function ConfigListView() {
                 </td>
               </tr>
             ))}
-            {monitors?.length === 0 && (
+            {filteredMonitors.length === 0 && (
               <tr>
-                <td
-                  colSpan={3}
-                  className="p-8 text-center text-gold-dim font-mono text-sm"
-                >
-                  NO MONITORS FOUND
+                <td colSpan={3} className="p-8 text-center text-gold-dim">
+                  NO MATCHES
                 </td>
               </tr>
             )}

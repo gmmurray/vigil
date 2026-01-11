@@ -24,6 +24,22 @@ export function MonitorDetailView() {
     refetchInterval: 5000,
   });
 
+  const { data: incidentData } = useQuery({
+    queryKey: ['monitor-incidents', id],
+    queryFn: () => api.fetchIncidents({ monitorId: id, limit: 10 }), // Fetch last 10 incidents
+    enabled: !!id,
+  });
+
+  const getDuration = (start: string, end: string | null) => {
+    if (!end) return 'ONGOING';
+    const diffMs = new Date(end).getTime() - new Date(start).getTime();
+    const minutes = Math.floor(diffMs / 60000);
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
+  };
+
   if (loadingMonitor || loadingChecks) {
     return (
       <div className="panel animate-pulse text-gold-dim font-mono text-center p-8">
@@ -47,7 +63,7 @@ export function MonitorDetailView() {
 
   const isUp = monitor.status === 'UP' || monitor.status === 'RECOVERING';
   const checks = checkData?.data || [];
-
+  const incidents = incidentData?.data || [];
   return (
     <div className="flex flex-col gap-6">
       {/* Header / Actions */}
@@ -113,6 +129,57 @@ export function MonitorDetailView() {
         </div>
         <ResponseTimeChart checks={checks} />
       </div>
+
+      {incidents.length > 0 && (
+        <div className="panel p-0 overflow-hidden">
+          <div className="bg-active/50 px-4 py-2 border-b border-gold-faint text-xs uppercase text-gold-dim font-medium">
+            Recorded Incidents (Last 10)
+          </div>
+          <table className="w-full text-left border-collapse text-sm font-mono">
+            <thead>
+              <tr className="border-b border-gold-faint text-gold-dim text-xs">
+                <th className="p-3 font-normal">Severity</th>
+                <th className="p-3 font-normal">Cause</th>
+                <th className="p-3 font-normal">Started</th>
+                <th className="p-3 font-normal text-right">Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              {incidents.map(inc => (
+                <tr
+                  key={inc.id}
+                  className="border-b border-gold-faint/50 last:border-0 hover:bg-active/30"
+                >
+                  <td className="p-3">
+                    <span
+                      className={cn(
+                        'text-xs px-1.5 py-0.5 border',
+                        !inc.endedAt
+                          ? 'text-retro-red border-retro-red bg-retro-red/10 animate-pulse'
+                          : 'text-retro-green border-retro-green bg-retro-green/5',
+                      )}
+                    >
+                      {!inc.endedAt ? 'OUTAGE' : 'RESOLVED'}
+                    </span>
+                  </td>
+                  <td
+                    className="p-3 text-gold-primary truncate max-w-[200px]"
+                    title={inc.cause || ''}
+                  >
+                    {inc.cause || 'Unknown'}
+                  </td>
+                  <td className="p-3 text-gold-dim">
+                    {new Date(inc.startedAt).toLocaleString()}
+                  </td>
+                  <td className="p-3 text-right text-gold-dim">
+                    {getDuration(inc.startedAt, inc.endedAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* 3. Recent Activity Log */}
       <div className="panel p-0 overflow-hidden">
