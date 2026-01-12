@@ -7,7 +7,7 @@ import { ResponseTimeChart } from '../monitors/ResponseTimeChart';
 export function MonitorDetailView() {
   const { id } = useParams<{ id: string }>();
 
-  // 1. Fetch Monitor Config & Current Status
+  // 1. Fetch Monitor Config
   const { data: monitor, isLoading: loadingMonitor } = useQuery({
     queryKey: ['monitor', id],
     queryFn: () => api.fetchMonitor(id!),
@@ -15,7 +15,7 @@ export function MonitorDetailView() {
     refetchInterval: 5000,
   });
 
-  // 2. Fetch Recent Checks History
+  // 2. Fetch Checks
   const { data: checkData, isLoading: loadingChecks } = useQuery({
     queryKey: ['monitor-checks', id],
     queryFn: () => api.fetchMonitorChecks(id!),
@@ -23,9 +23,17 @@ export function MonitorDetailView() {
     refetchInterval: 5000,
   });
 
+  // 3. Fetch Incidents
   const { data: incidentData } = useQuery({
     queryKey: ['monitor-incidents', id],
-    queryFn: () => api.fetchIncidents({ monitorId: id, limit: 10 }), // Fetch last 10 incidents
+    queryFn: () => api.fetchIncidents({ monitorId: id, limit: 10 }),
+    enabled: !!id,
+  });
+
+  // 4. Fetch Stats (Uptime/Latency)
+  const { data: stats } = useQuery({
+    queryKey: ['monitor-stats', id],
+    queryFn: () => api.fetchMonitorStats(id!),
     enabled: !!id,
   });
 
@@ -54,7 +62,7 @@ export function MonitorDetailView() {
           ERROR: MONITOR NOT FOUND
         </div>
         <Link to="/" className="btn-gold">
-          BACK TO DASHBOARD
+          Back to dashboard
         </Link>
       </div>
     );
@@ -63,9 +71,10 @@ export function MonitorDetailView() {
   const isUp = monitor.status === 'UP' || monitor.status === 'RECOVERING';
   const checks = checkData?.data || [];
   const incidents = incidentData?.data || [];
+
   return (
     <div className="flex flex-col gap-6">
-      {/* Header / Actions */}
+      {/* Header */}
       <div className="flex justify-between items-end">
         <div>
           <Link
@@ -79,46 +88,87 @@ export function MonitorDetailView() {
           </h1>
           <div className="font-mono text-gold-dim text-sm">{monitor.url}</div>
         </div>
-        <div className="flex gap-2">
+        <div>
           <Link to={`/monitors/${id}/edit`} className="btn-gold">
             Edit Config
           </Link>
         </div>
       </div>
 
-      {/* 1. Primary Status Card */}
-      <div className="panel grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-        <div className="md:col-span-1">
-          <div className="text-xs uppercase tracking-widest text-gold-dim mb-2">
-            Current Status
+      {/* NEW LAYOUT: Split Panels */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* LEFT PANEL: Live Health Metrics (2/3 Width) */}
+        <div className="panel lg:col-span-2 flex flex-col justify-between min-h-40">
+          <div>
+            <div className="text-xs uppercase tracking-widest text-gold-dim mb-2">
+              Current Status
+            </div>
+            <div
+              className={cn(
+                'text-5xl font-mono tracking-tight',
+                isUp ? 'text-retro-green' : 'text-retro-red',
+              )}
+            >
+              {monitor.status}
+            </div>
           </div>
-          <div
-            className={cn(
-              'text-4xl font-mono',
-              isUp ? 'text-retro-green' : 'text-retro-red',
-            )}
-          >
-            {monitor.status}
+
+          <div className="grid grid-cols-2 gap-8 mt-6 border-t border-gold-faint pt-4">
+            <div>
+              <div className="text-xs uppercase tracking-widest text-gold-dim mb-1">
+                Uptime (30d)
+              </div>
+              <div className="text-2xl font-mono text-gold-primary">
+                {stats ? `${stats.uptime}%` : '...'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-widest text-gold-dim mb-1">
+                Avg Latency
+              </div>
+              <div className="text-2xl font-mono text-gold-primary">
+                {stats ? `${stats.avgResponseTime}ms` : '...'}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="md:col-span-2 flex flex-col gap-2">
-          <div className="flex justify-between text-sm border-b border-gold-faint pb-1">
-            <span className="text-gold-dim">Interval</span>
-            <span className="font-mono">{monitor.intervalSeconds}s</span>
+        {/* RIGHT PANEL: Configuration Details (1/3 Width) */}
+        <div className="panel flex flex-col gap-4 justify-center bg-active/5">
+          <div className="text-xs uppercase tracking-widest text-gold-dim border-b border-gold-faint pb-2 mb-1">
+            Configuration
           </div>
-          <div className="flex justify-between text-sm border-b border-gold-faint pb-1">
+
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-gold-dim">Check Interval</span>
+            <span className="font-mono text-gold-primary">
+              {monitor.intervalSeconds}s
+            </span>
+          </div>
+
+          <div className="flex justify-between items-center text-sm">
             <span className="text-gold-dim">Method</span>
-            <span className="font-mono">{monitor.method}</span>
+            <span className="font-mono text-gold-primary bg-active/20 px-2 py-0.5 rounded text-xs border border-gold-faint">
+              {monitor.method}
+            </span>
           </div>
-          <div className="flex justify-between text-sm border-b border-gold-faint pb-1">
-            <span className="text-gold-dim">Expected</span>
-            <span className="font-mono">{monitor.expectedStatus}</span>
+
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-gold-dim">Timeout</span>
+            <span className="font-mono text-gold-primary">5s</span>{' '}
+            {/* Default/Implied */}
+          </div>
+
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-gold-dim">Expected Code</span>
+            <span className="font-mono text-retro-green">
+              {monitor.expectedStatus}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* 2. Response Time Chart (Stacked Below) */}
+      {/* Chart Section */}
       <div className="flex flex-col gap-2">
         <div className="text-xs uppercase tracking-widest text-gold-dim font-medium">
           Latency Visualization (Last 50 Checks)
@@ -126,6 +176,7 @@ export function MonitorDetailView() {
         <ResponseTimeChart checks={checks} />
       </div>
 
+      {/* Incident History Table */}
       {incidents.length > 0 && (
         <div className="panel p-0 overflow-hidden">
           <div className="bg-active/50 px-4 py-2 border-b border-gold-faint text-xs uppercase text-gold-dim font-medium">
@@ -177,7 +228,7 @@ export function MonitorDetailView() {
         </div>
       )}
 
-      {/* 3. Recent Activity Log */}
+      {/* Recent Activity Log */}
       <div className="panel p-0 overflow-hidden">
         <div className="bg-active/50 px-4 py-2 border-b border-gold-faint text-xs uppercase text-gold-dim font-medium">
           Recent Activity Log
@@ -198,14 +249,12 @@ export function MonitorDetailView() {
                   key={check.id}
                   className="border-b border-gold-faint/50 last:border-0 hover:bg-active/30 transition-colors"
                 >
-                  {/* ADDED: title attribute for ISO timestamp on hover */}
                   <td
                     className="p-3 text-gold-dim cursor-help"
                     title={check.checkedAt}
                   >
                     {new Date(check.checkedAt).toLocaleTimeString()}
                   </td>
-
                   <td
                     className={cn(
                       'p-3',
@@ -224,13 +273,6 @@ export function MonitorDetailView() {
                   </td>
                 </tr>
               ))}
-              {checks.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="p-8 text-center text-gold-dim">
-                    NO DATA RECORDED
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>

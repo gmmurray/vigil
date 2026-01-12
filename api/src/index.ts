@@ -3,6 +3,7 @@ import { MonitorObject } from './monitor';
 import channels from './routes/channels';
 import incidents from './routes/incidents';
 import monitors from './routes/monitors';
+import stats from './routes/stats';
 
 export { MonitorObject };
 
@@ -18,6 +19,7 @@ const api = new Hono<{ Bindings: CloudflareBindings }>();
 api.route('/monitors', monitors);
 api.route('/incidents', incidents);
 api.route('/channels', channels);
+api.route('/stats', stats);
 
 // Mount API group to main app under /api/v1
 app.route('/api/v1', api);

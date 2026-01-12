@@ -70,4 +70,14 @@ export const api = {
     if (!res.ok) throw new Error('Failed to fetch incidents');
     return res.json() as Promise<{ data: Incident[] }>;
   },
+
+  fetchGlobalStats: async () => {
+    const res = await fetch(`${API_BASE}/stats/global`);
+    return res.json() as Promise<{ uptime30d: number; avgLatency: number }>;
+  },
+
+  fetchMonitorStats: async (monitorId: string) => {
+    const res = await fetch(`${API_BASE}/monitors/${monitorId}/stats`);
+    return res.json() as Promise<{ uptime: number; avgResponseTime: number }>;
+  },
 };

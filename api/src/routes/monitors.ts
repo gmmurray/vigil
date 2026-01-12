@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { createDb } from '../db';
@@ -166,33 +166,59 @@ app.get('/:id/stats', async c => {
   const id = c.req.param('id');
   const db = createDb(c.env.DB);
 
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  // Default to 30 days if not specified
+  const days = 30;
+  const now = new Date();
+  const startWindow = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
-  const stats = await db
-    .select({
-      totalChecks: sql<number>`count(*)`,
-      upChecks: sql<number>`sum(case when ${checkResults.status} = 'UP' then 1 else 0 end)`,
-      avgResponseTime: sql<number>`avg(${checkResults.responseTimeMs})`,
-    })
+  // 1. OPTIMIZED UPTIME: Use Incidents table (fast) instead of counting 260k rows
+  const recentIncidents = await db
+    .select()
+    .from(incidents)
+    .where(
+      and(
+        eq(incidents.monitorId, id),
+        gt(incidents.startedAt, startWindow.toISOString()),
+      ),
+    )
+    .all();
+
+  let downSeconds = 0;
+  for (const inc of recentIncidents) {
+    // Clamp start time to the window
+    const start =
+      new Date(inc.startedAt).getTime() < startWindow.getTime()
+        ? startWindow.getTime()
+        : new Date(inc.startedAt).getTime();
+
+    // Use 'now' if incident is still ongoing
+    const end = inc.endedAt ? new Date(inc.endedAt).getTime() : now.getTime();
+
+    downSeconds += (end - start) / 1000;
+  }
+
+  const totalSeconds = days * 24 * 60 * 60;
+  const uptime = ((totalSeconds - downSeconds) / totalSeconds) * 100;
+
+  // 2. OPTIMIZED LATENCY: Sample last 500 checks (sufficient for average)
+  const latencyResult = await db
+    .select({ avg: sql<number>`avg(response_time_ms)` })
     .from(checkResults)
     .where(
       and(
         eq(checkResults.monitorId, id),
-        sql`${checkResults.checkedAt} >= ${since}`,
+        isNotNull(checkResults.responseTimeMs),
       ),
     )
+    .orderBy(desc(checkResults.checkedAt))
+    .limit(500) // Sample size
     .get();
-
-  const total = stats?.totalChecks || 0;
-  const up = stats?.upChecks || 0;
-  const uptime = total > 0 ? (up / total) * 100 : 0;
 
   return c.json({
     monitorId: id,
-    period: '24h',
-    uptime: Number(uptime.toFixed(2)),
-    avgResponseTime: Math.round(stats?.avgResponseTime || 0),
-    totalChecks: total,
+    period: `${days}d`,
+    uptime: Number(Math.max(0, Math.min(100, uptime)).toFixed(2)),
+    avgResponseTime: Math.round(latencyResult?.avg || 0),
   });
 });
 
