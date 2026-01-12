@@ -7,12 +7,31 @@ export function MonitorRow({ monitor }: { monitor: Monitor }) {
   const isDown = monitor.status === 'DOWN';
   const isWarn = monitor.status === 'DEGRADED';
 
+  // 1. Prepare Pulse Data
+  // API gives Newest -> Oldest. We want Oldest -> Newest for left-to-right timeline.
+  const history = monitor.recentChecks
+    ? [...monitor.recentChecks].reverse()
+    : [];
+
+  // Create a fixed 20-slot array. Fill from the right (newest), pad left with null.
+  const SLOT_COUNT = 20;
+  const pulseData = Array.from({ length: SLOT_COUNT }).map((_, i) => {
+    // Calculate index relative to the end of the history array
+    const historyIndex = history.length - (SLOT_COUNT - i);
+    return historyIndex >= 0 ? history[historyIndex] : null;
+  });
+
+  // 2. Get Latest Check for Stats (if available)
+  const latestCheck = monitor.recentChecks?.[0];
+  const latency = latestCheck?.responseTimeMs ?? null;
+  const lastCode = latestCheck?.statusCode ?? '---';
+
   return (
     <Link
       to={`/monitors/${monitor.id}`}
       className="grid grid-cols-[40px_2fr_1.5fr] border-b border-gold-faint p-5 transition-colors hover:bg-active last:border-b-0 cursor-pointer group"
     >
-      {/* Status Block */}
+      {/* Status Block (Global State) */}
       <div className="pt-1.5">
         <div
           className={cn(
@@ -20,6 +39,7 @@ export function MonitorRow({ monitor }: { monitor: Monitor }) {
             isUp && 'bg-retro-green shadow-retro-green',
             isDown && 'bg-retro-red shadow-retro-red',
             isWarn && 'bg-retro-warn shadow-retro-warn',
+            !monitor.enabled && 'bg-retro-off shadow-none',
           )}
         />
       </div>
@@ -28,21 +48,17 @@ export function MonitorRow({ monitor }: { monitor: Monitor }) {
       <div className="flex flex-col gap-1">
         <div
           className={cn(
-            'font-medium text-base',
+            'font-medium text-base transition-colors',
             isDown && 'text-retro-red',
             isWarn && 'text-retro-warn',
+            !monitor.enabled && 'text-gold-dim',
           )}
         >
           {monitor.name}
         </div>
-        <a
-          href={monitor.url}
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs font-mono text-gold-dim hover:text-gold-primary truncate max-w-75 block opacity-70"
-        >
+        <div className="text-xs font-mono text-gold-dim hover:text-gold-primary truncate max-w-75 opacity-70">
           {monitor.url}
-        </a>
+        </div>
         {isDown && (
           <div className="text-xs font-mono text-retro-red mt-1">
             &gt;&gt; CONNECTION REFUSED
@@ -50,35 +66,49 @@ export function MonitorRow({ monitor }: { monitor: Monitor }) {
         )}
       </div>
 
-      {/* Pulse Viz (Mocked random pattern for now) */}
+      {/* Pulse Viz & Stats */}
       <div className="flex flex-col items-end justify-center gap-3">
+        {/* The Digital Pulse Track */}
         <div className="flex gap-0.5">
-          {Array.from({ length: 16 }).map((_, i) => (
-            <div
-              key={i.toString()}
-              className={cn(
-                'w-1.5 h-3 opacity-50',
-                Math.random() > 0.3 && 'opacity-100', // Random "activity"
-                isUp && 'bg-retro-green',
-                isDown && 'bg-retro-red',
-                isWarn && 'bg-retro-warn',
-              )}
-            />
-          ))}
+          {pulseData.map((check, i) => {
+            // Determine color for this specific "bit"
+            const bitUp = check?.status === 'UP';
+            const bitDown = check?.status === 'DOWN';
+
+            return (
+              <div
+                key={i}
+                className={cn(
+                  'w-1.5 h-3 transition-all duration-300',
+                  // If check exists: 100% opacity. If padding: 10% opacity
+                  check ? 'opacity-100' : 'opacity-10 bg-retro-off',
+                  // Color logic
+                  bitUp && 'bg-retro-green',
+                  bitDown && 'bg-retro-red',
+                  // Default fallback for padding or unknown
+                  !check && 'bg-retro-off',
+                )}
+              />
+            );
+          })}
         </div>
 
+        {/* Real-time Stats from Latest Check */}
         <div className="flex gap-4 text-xs font-mono text-gold-dim">
           <span
             className={cn(
-              isUp && 'text-gold-primary',
-              isDown && 'text-retro-red',
-              isWarn && 'text-retro-warn',
+              latestCheck?.status === 'UP' && 'text-gold-primary',
+              latestCheck?.status === 'DOWN' && 'text-retro-red',
             )}
           >
-            {monitor.status}
+            {latestCheck
+              ? `${lastCode} ${latestCheck.status === 'UP' ? 'OK' : 'ERR'}`
+              : 'NO DATA'}
           </span>
           <span className="text-gold-faint">|</span>
-          <span>{monitor.intervalSeconds}s</span>
+          <span className={cn(latency && latency > 1000 && 'text-retro-warn')}>
+            {latency !== null ? `${latency}ms` : '---'}
+          </span>
         </div>
       </div>
     </Link>

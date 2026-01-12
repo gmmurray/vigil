@@ -10,6 +10,7 @@ export interface Monitor {
   status: MonitorStatus;
   enabled: number;
   updatedAt: string;
+  recentChecks?: CheckResult[];
 }
 
 export interface MonitorStats {

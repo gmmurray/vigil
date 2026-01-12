@@ -9,8 +9,23 @@ const app = new Hono<{ Bindings: CloudflareBindings }>();
 
 app.get('/', async c => {
   const db = createDb(c.env.DB);
-  const result = await db.select().from(monitors).all();
-  return c.json(result);
+  const monitorsList = await db.select().from(monitors).all();
+
+  const monitorsWithChecks = await Promise.all(
+    monitorsList.map(async m => {
+      const recent = await db
+        .select()
+        .from(checkResults)
+        .where(eq(checkResults.monitorId, m.id))
+        .orderBy(desc(checkResults.checkedAt))
+        .limit(20)
+        .all();
+
+      return { ...m, recentChecks: recent };
+    }),
+  );
+
+  return c.json(monitorsWithChecks);
 });
 
 app.post('/', async c => {
