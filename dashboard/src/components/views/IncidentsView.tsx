@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { cn } from '../../lib/utils';
-import { Incident, type Monitor } from '../../types';
+import type { Monitor } from '../../types';
 
 export function IncidentsView() {
   const [showHistory, setShowHistory] = useState(false);
@@ -55,12 +55,14 @@ export function IncidentsView() {
 
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => setShowHistory(false)}
             className={cn('btn-gold', !showHistory && 'active')}
           >
             Active
           </button>
           <button
+            type="button"
             onClick={() => setShowHistory(true)}
             className={cn('btn-gold', showHistory && 'active')}
           >
@@ -70,7 +72,7 @@ export function IncidentsView() {
       </div>
 
       {/* Incident List */}
-      <div className="panel p-0 overflow-hidden min-h-[400px]">
+      <div className="panel p-0 overflow-hidden min-h-100">
         {loadingIncidents ? (
           <div className="p-8 text-center text-gold-dim font-mono animate-pulse">
             :: ACCESSING ARCHIVES ::
@@ -115,7 +117,7 @@ export function IncidentsView() {
                       </Link>
                     </td>
                     <td
-                      className="p-4 text-sm text-gold-dim font-mono max-w-[300px] truncate"
+                      className="p-4 text-sm text-gold-dim font-mono max-w-75 truncate"
                       title={incident.cause || ''}
                     >
                       {incident.cause || 'Unknown Error'}

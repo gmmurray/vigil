@@ -39,7 +39,7 @@ export function MonitorRow({ monitor }: { monitor: Monitor }) {
           href={monitor.url}
           target="_blank"
           rel="noreferrer"
-          className="text-xs font-mono text-gold-dim hover:text-gold-primary truncate max-w-[300px] block opacity-70"
+          className="text-xs font-mono text-gold-dim hover:text-gold-primary truncate max-w-75 block opacity-70"
         >
           {monitor.url}
         </a>
@@ -52,7 +52,7 @@ export function MonitorRow({ monitor }: { monitor: Monitor }) {
 
       {/* Pulse Viz (Mocked random pattern for now) */}
       <div className="flex flex-col items-end justify-center gap-3">
-        <div className="flex gap-[2px]">
+        <div className="flex gap-0.5">
           {Array.from({ length: 16 }).map((_, i) => (
             <div
               key={i.toString()}

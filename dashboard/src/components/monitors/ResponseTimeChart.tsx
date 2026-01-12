@@ -1,12 +1,18 @@
+import type { JSX } from 'react';
 import {
   CartesianGrid,
   Line,
   LineChart,
   ResponsiveContainer,
   Tooltip,
+  type TooltipContentProps,
   XAxis,
   YAxis,
 } from 'recharts';
+import type {
+  NameType,
+  ValueType,
+} from 'recharts/types/component/DefaultTooltipContent';
 import { cn } from '../../lib/utils';
 import type { CheckResult } from '../../types';
 
@@ -29,14 +35,14 @@ export function ResponseTimeChart({ checks }: ResponseTimeChartProps) {
 
   if (data.length === 0) {
     return (
-      <div className="h-[250px] flex items-center justify-center border border-gold-faint bg-active/10 text-gold-dim font-mono text-xs">
+      <div className="h-62.5 flex items-center justify-center border border-gold-faint bg-active/10 text-gold-dim font-mono text-xs">
         NO SIGNAL DATA
       </div>
     );
   }
 
   return (
-    <div className="h-[250px] w-full bg-active/5 border border-gold-faint p-4 relative">
+    <div className="h-62.5 w-full bg-active/5 border border-gold-faint p-4 relative">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
           <CartesianGrid
@@ -83,7 +89,7 @@ export function ResponseTimeChart({ checks }: ResponseTimeChartProps) {
           />
 
           <Tooltip
-            content={<CustomTooltip />}
+            content={props => <CustomTooltip {...props} />}
             cursor={{
               stroke: '#dca54c',
               strokeWidth: 1,
@@ -118,7 +124,10 @@ export function ResponseTimeChart({ checks }: ResponseTimeChartProps) {
   );
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({
+  active,
+  payload,
+}: TooltipContentProps<ValueType, NameType>): JSX.Element | null => {
   if (active && payload && payload.length) {
     const dataPoint = payload[0].payload; // Access our full data object
     const status = dataPoint.status;
@@ -126,7 +135,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     const isDown = status === 'DOWN';
 
     return (
-      <div className="bg-panel border border-gold-primary p-3 shadow-[0_0_10px_rgba(0,0,0,0.5)] min-w-[140px] z-50">
+      <div className="bg-panel border border-gold-primary p-3 shadow-[0_0_10px_rgba(0,0,0,0.5)] min-w-35 z-50">
         <div className="text-gold-dim text-[10px] font-mono uppercase tracking-wider mb-2 border-b border-gold-faint pb-1">
           {dataPoint.timeLabel} {/* Use our pre-formatted label */}
         </div>

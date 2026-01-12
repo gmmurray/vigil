@@ -95,6 +95,7 @@ export function ConfigListView() {
                   </Link>
                   <span className="text-gold-faint text-xs">|</span>
                   <button
+                    type="button"
                     onClick={() => {
                       if (confirm('Are you sure? This deletes all history.')) {
                         deleteMutation.mutate(monitor.id);

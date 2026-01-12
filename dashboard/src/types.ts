@@ -23,7 +23,7 @@ export interface MonitorStats {
 export interface CheckResult {
   id: string;
   monitorId: string;
-  status: string; // "UP" | "DOWN"
+  status: string;
   responseTimeMs: number;
   statusCode: number;
   error: string | null;

@@ -1,12 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { cn } from '../../lib/utils';
 import { ResponseTimeChart } from '../monitors/ResponseTimeChart';
 
 export function MonitorDetailView() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
 
   // 1. Fetch Monitor Config & Current Status
   const { data: monitor, isLoading: loadingMonitor } = useQuery({
@@ -43,7 +42,7 @@ export function MonitorDetailView() {
   if (loadingMonitor || loadingChecks) {
     return (
       <div className="panel animate-pulse text-gold-dim font-mono text-center p-8">
-        :: ACQUIRING TARGET ::
+        :: LOADING ::
       </div>
     );
   }
@@ -54,9 +53,9 @@ export function MonitorDetailView() {
         <div className="text-retro-red font-mono mb-4">
           ERROR: MONITOR NOT FOUND
         </div>
-        <button onClick={() => navigate('/')} className="btn-gold">
-          Return to Base
-        </button>
+        <Link to="/" className="btn-gold">
+          BACK TO DASHBOARD
+        </Link>
       </div>
     );
   }
@@ -69,24 +68,21 @@ export function MonitorDetailView() {
       {/* Header / Actions */}
       <div className="flex justify-between items-end">
         <div>
-          <button
-            onClick={() => navigate('/')}
+          <Link
+            to="/"
             className="text-xs text-gold-dim hover:text-gold-primary mb-2 font-mono"
           >
             &lt; BACK TO DASHBOARD
-          </button>
+          </Link>
           <h1 className="text-2xl text-gold-primary font-medium">
             {monitor.name}
           </h1>
           <div className="font-mono text-gold-dim text-sm">{monitor.url}</div>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => navigate(`/monitors/${id}/edit`)}
-            className="btn-gold"
-          >
+          <Link to={`/monitors/${id}/edit`} className="btn-gold">
             Edit Config
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -163,7 +159,7 @@ export function MonitorDetailView() {
                     </span>
                   </td>
                   <td
-                    className="p-3 text-gold-primary truncate max-w-[200px]"
+                    className="p-3 text-gold-primary truncate max-w-50"
                     title={inc.cause || ''}
                   >
                     {inc.cause || 'Unknown'}
@@ -186,7 +182,7 @@ export function MonitorDetailView() {
         <div className="bg-active/50 px-4 py-2 border-b border-gold-faint text-xs uppercase text-gold-dim font-medium">
           Recent Activity Log
         </div>
-        <div className="max-h-[400px] overflow-y-auto">
+        <div className="max-h-100 overflow-y-auto">
           <table className="w-full text-left border-collapse text-sm font-mono">
             <thead>
               <tr className="border-b border-gold-faint text-gold-dim text-xs">
