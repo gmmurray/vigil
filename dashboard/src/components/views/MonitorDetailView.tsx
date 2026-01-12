@@ -233,7 +233,7 @@ export function MonitorDetailView() {
         <div className="bg-active/50 px-4 py-2 border-b border-gold-faint text-xs uppercase text-gold-dim font-medium">
           Recent Activity Log
         </div>
-        <div className="max-h-100 overflow-y-auto">
+        <div className="max-h-100 overflow-y-auto scrollable-activity-log">
           <table className="w-full text-left border-collapse text-sm font-mono">
             <thead>
               <tr className="border-b border-gold-faint text-gold-dim text-xs">

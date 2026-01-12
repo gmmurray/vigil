@@ -74,3 +74,27 @@
     @apply absolute top-0 left-0 w-0 h-0 border-t-4 border-r-4 border-t-gold-primary border-r-transparent;
   }
 }
+
+/* Scrollbar styling for webkit browsers (Chrome, Safari, Edge) */
+.scrollable-activity-log::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollable-activity-log::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollable-activity-log::-webkit-scrollbar-thumb {
+  background: var(--color-gold-dim);
+  border: 1px solid var(--color-gold-faint);
+}
+
+.scrollable-activity-log::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold-primary);
+}
+
+/* Firefox */
+.scrollable-activity-log {
+  scrollbar-color: var(--color-gold-dim) transparent;
+  scrollbar-width: thin;
+}
