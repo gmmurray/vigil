@@ -9,7 +9,7 @@ export function Layout() {
         {/* Header */}
         <nav className="flex justify-between items-end pb-4 border-b border-gold-faint">
           <div className="text-xl font-semibold uppercase tracking-[2px] text-gold-primary">
-            System<span className="text-gold-dim">{`//`}</span>Monitor
+            Vigil<span className="text-gold-dim">{`//`}</span>Monitor
           </div>
           <div className="flex gap-0.5">
             <NavButton to="/" label="Dashboard" />

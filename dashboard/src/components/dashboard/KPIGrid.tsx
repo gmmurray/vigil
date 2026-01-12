@@ -3,11 +3,11 @@ import { api } from '../../lib/api'; // Ensure api.fetchGlobalStats is added bel
 import { cn } from '../../lib/utils';
 
 export function KPIGrid({
-  activeCount,
-  totalCount,
+  enabledCount,
+  downCount,
 }: {
-  activeCount: number;
-  totalCount: number;
+  enabledCount: number;
+  downCount: number;
 }) {
   const { data: stats, isLoading } = useQuery({
     queryKey: ['global-stats'],
@@ -15,7 +15,7 @@ export function KPIGrid({
     refetchInterval: 60000, // Refresh every minute
   });
 
-  const isDegraded = activeCount < totalCount;
+  const isHealthy = downCount === 0;
 
   return (
     <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -27,14 +27,20 @@ export function KPIGrid({
         <div>
           <div
             className={cn(
-              'text-3xl font-mono',
-              isDegraded ? 'text-retro-warn' : 'text-retro-green',
+              'text-3xl font-mono tracking-tight',
+              isHealthy ? 'text-retro-green' : 'text-retro-red animate-pulse',
             )}
           >
-            {isDegraded ? 'DEGRADED' : 'OPERATIONAL'}
+            {isHealthy ? 'OPERATIONAL' : 'DEGRADED'}
           </div>
+
+          {/* Contextual Subtext */}
           <div className="text-sm text-gold-dim mt-1">
-            {activeCount}/{totalCount} Monitors Active
+            {enabledCount === 0
+              ? 'No Monitors Enabled'
+              : isHealthy
+                ? `${enabledCount}/${enabledCount} Enabled Systems Nominal`
+                : `${downCount} Service Disruption${downCount > 1 ? 's' : ''}`}
           </div>
         </div>
       </div>

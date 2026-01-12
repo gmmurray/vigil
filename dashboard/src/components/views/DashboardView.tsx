@@ -19,6 +19,13 @@ export function DashboardView() {
     refetchInterval: 5000,
   });
 
+  const allMonitors = monitors || [];
+  const enabledMonitors = allMonitors.filter(m => m.enabled);
+  const enabledCount = enabledMonitors.length;
+  const downCount = enabledMonitors.filter(
+    m => m.status === 'DOWN' || m.status === 'DEGRADED',
+  ).length;
+
   if (isLoading) {
     return (
       <div className="panel h-32 flex items-center justify-center font-mono text-gold-dim animate-pulse">
@@ -35,19 +42,15 @@ export function DashboardView() {
     );
   }
 
-  const filteredMonitors =
-    monitors?.filter(
-      m =>
-        m.name.toLowerCase().includes(search.toLowerCase()) ||
-        m.url.toLowerCase().includes(search.toLowerCase()),
-    ) || [];
-
-  const activeCount = monitors?.filter(m => m.enabled).length || 0;
+  const filteredMonitors = allMonitors.filter(
+    m =>
+      m.name.toLowerCase().includes(search.toLowerCase()) ||
+      m.url.toLowerCase().includes(search.toLowerCase()),
+  );
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Pass full counts to KPI Grid, not filtered counts */}
-      <KPIGrid activeCount={activeCount} totalCount={monitors?.length || 0} />
+      <KPIGrid enabledCount={enabledCount} downCount={downCount} />
 
       <div className="flex flex-col gap-4">
         {/* Toolbar Row */}
