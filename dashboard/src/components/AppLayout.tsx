@@ -1,18 +1,20 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 
 import { cn } from '../lib/utils';
 
-export function Layout() {
+export function AppLayout() {
   return (
     <div className="flex justify-center min-h-screen p-8">
       <div className="w-full max-w-250 flex flex-col gap-8 relative z-10">
         {/* Header */}
         <nav className="flex justify-between items-end pb-4 border-b border-gold-faint">
-          <div className="text-xl font-semibold uppercase tracking-[2px] text-gold-primary">
-            Vigil<span className="text-gold-dim">{`//`}</span>Monitor
-          </div>
+          <Link to="/dashboard">
+            <div className="text-xl font-semibold uppercase tracking-[2px] text-gold-primary">
+              Vigil<span className="text-gold-dim">{`//`}</span>Monitor
+            </div>
+          </Link>
           <div className="flex gap-0.5">
-            <NavButton to="/" label="Dashboard" />
+            <NavButton to="/dashboard" label="Dashboard" />
             <NavButton to="/incidents" label="Incidents" />
             <NavButton to="/config" label="Config" />
           </div>

@@ -1,3 +1,5 @@
+import type { Params } from 'react-router-dom';
+
 export type MonitorStatus = 'UP' | 'DOWN' | 'DEGRADED' | 'RECOVERING';
 
 export interface Monitor {
@@ -37,4 +39,15 @@ export interface Incident {
   startedAt: string;
   endedAt: string | null;
   cause: string | null;
+}
+
+export interface RouteHandle {
+  title?: string | ((params: Params<string>) => string);
+  meta?: {
+    description?: string;
+    ogImage?: string;
+    ogType?: 'website' | 'article' | 'profile';
+    canonical?: string;
+    noIndex?: boolean;
+  };
 }
