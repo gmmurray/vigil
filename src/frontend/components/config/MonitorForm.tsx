@@ -22,7 +22,7 @@ export function MonitorForm({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<MonitorFormData>({
+  } = useForm({
     resolver: zodResolver(monitorSchema),
     defaultValues: defaultValues
       ? ({
