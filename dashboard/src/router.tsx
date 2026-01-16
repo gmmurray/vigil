@@ -5,6 +5,7 @@ import { displayMonitorId } from './components/monitors/ids';
 import { ConfigListView } from './components/views/ConfigListView';
 import { DashboardView } from './components/views/DashboardView';
 import { IncidentsView } from './components/views/IncidentsView';
+import { LandingView } from './components/views/LandingView';
 import { MonitorDetailView } from './components/views/MonitorDetailView';
 import { MonitorFormView } from './components/views/MonitorFormView';
 import type { RouteHandle } from './types';
@@ -16,7 +17,7 @@ export const router = createBrowserRouter([
     children: [
       {
         path: '/',
-        element: <>placeholder landing page</>,
+        element: <LandingView />,
         handle: { title: 'Welcome' },
       },
       {
