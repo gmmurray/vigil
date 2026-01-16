@@ -25,10 +25,10 @@ export function MonitorForm({
   } = useForm<MonitorFormData>({
     resolver: zodResolver(monitorSchema),
     defaultValues: defaultValues
-      ? {
+      ? ({
           ...defaultValues,
           enabled: defaultValues.enabled === 1,
-        }
+        } as MonitorFormData)
       : {
           method: 'GET',
           intervalSeconds: 60,

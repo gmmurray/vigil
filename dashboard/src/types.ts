@@ -12,6 +12,7 @@ export interface Monitor {
   status: MonitorStatus;
   enabled: number;
   updatedAt: string;
+  timeoutMs: number;
   recentChecks?: CheckResult[];
 }
 
