@@ -30,7 +30,7 @@
     {
       "binding": "DB",
       "database_name": "vigil-db",
-      "database_id": "564c610b-c0c5-4bd0-a3c8-5b49872406a4",
+      "database_id": "YOUR_DB_ID_HERE",
       "migrations_dir": "src/worker/drizzle"
     }
   ]
