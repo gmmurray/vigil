@@ -27,6 +27,7 @@ export class MonitorObject extends DurableObject {
     const url = new URL(request.url);
 
     if (request.headers.get('Upgrade') === 'websocket') {
+      await this.ensureConfig();
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
 
@@ -44,6 +45,10 @@ export class MonitorObject extends DurableObject {
     }
 
     if (url.pathname === '/check' && request.method === 'POST') {
+      await this.ensureConfig();
+      if (!this.config) {
+        return new Response('Monitor not initialized', { status: 400 });
+      }
       const force = url.searchParams.get('force') === 'true';
 
       if (force) {
@@ -80,22 +85,14 @@ export class MonitorObject extends DurableObject {
     webSocket.accept();
     this.sessions.push(webSocket);
 
-    if (this.config) {
-      try {
-        webSocket.send(
-          JSON.stringify({
-            type: 'STATUS_UPDATE',
-            payload: {
-              monitorStatus: this.config.status,
-            },
-          }),
-        );
-      } catch {
-        // If send fails immediately, connection is likely dead
-        this.sessions = this.sessions.filter(s => s !== webSocket);
-        return;
-      }
-    }
+    webSocket.send(
+      JSON.stringify({
+        type: 'STATUS_UPDATE',
+        payload: {
+          monitorStatus: this.config?.status ?? 'DOWN',
+        },
+      }),
+    );
 
     webSocket.addEventListener('close', () => {
       this.sessions = this.sessions.filter(s => s !== webSocket);
@@ -150,7 +147,6 @@ export class MonitorObject extends DurableObject {
   }
 
   async performCheckLifecycle(): Promise<CheckResult> {
-    // 1. EXECUTE: Perform the network check
     const result = await this.check();
 
     const prevStatus = this.config?.status || 'DOWN';
@@ -418,5 +414,18 @@ export class MonitorObject extends DurableObject {
       checkedAt: new Date().toISOString(),
       id: ulid(),
     };
+  }
+
+  private async ensureConfig() {
+    if (this.config) return;
+
+    const monitorId = await this.ctx.storage.get<string>('monitorId');
+    if (!monitorId) return;
+
+    await this.refreshConfig(monitorId);
+
+    if (!this.config) {
+      console.warn(`Monitor ${monitorId} missing from DB`);
+    }
   }
 }

@@ -80,4 +80,14 @@ export const api = {
     const res = await fetch(`${API_BASE}/monitors/${monitorId}/stats`);
     return res.json() as Promise<{ uptime: number; avgResponseTime: number }>;
   },
+
+  subscribeToMonitor: (id: string) => {
+    const wsUrl = getWsUrl(`/monitors/${id}/sub`);
+    return new WebSocket(wsUrl);
+  },
+};
+
+const getWsUrl = (path: string) => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}${API_BASE}${path}`;
 };

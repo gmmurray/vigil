@@ -52,3 +52,20 @@ export interface RouteHandle {
     noIndex?: boolean;
   };
 }
+
+type CheckCompletedMessage = {
+  type: 'CHECK_COMPLETED';
+  payload: {
+    check: CheckResult;
+    monitorStatus: MonitorStatus;
+  };
+};
+
+type StatusUpdateMessage = {
+  type: 'STATUS_UPDATE';
+  payload: {
+    monitorStatus: MonitorStatus;
+  };
+};
+
+export type MonitorBroadcast = CheckCompletedMessage | StatusUpdateMessage;

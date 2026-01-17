@@ -1,51 +1,121 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api } from '../../lib/api';
+import { api, queryClient } from '../../lib/api';
+import {
+  getMonitorChecksQueryOptions,
+  getMonitorIncidentsQueryOptions,
+  getMonitorQueryOptions,
+  getMonitorStatsQueryOptions,
+} from '../../lib/queries';
 import { cn } from '../../lib/utils';
+import type { CheckResult, MonitorBroadcast, MonitorStatus } from '../../types';
 import { ResponseTimeChart } from '../monitors/ResponseTimeChart';
+
+const CHECK_LIMIT = 50;
 
 export function MonitorDetailView() {
   const { id } = useParams<{ id: string }>();
+  const [currentStatus, setCurrentStatus] = useState<MonitorStatus | null>(
+    null,
+  );
 
-  // 1. Fetch Monitor Config
-  const { data: monitor, isLoading: loadingMonitor } = useQuery({
-    queryKey: ['monitor', id],
-    queryFn: () => api.fetchMonitor(id!),
-    enabled: !!id,
-    refetchInterval: 5000,
-  });
+  const { data: monitor, isLoading: loadingMonitor } = useQuery(
+    getMonitorQueryOptions(id),
+  );
 
-  // 2. Fetch Checks
-  const { data: checkData, isLoading: loadingChecks } = useQuery({
-    queryKey: ['monitor-checks', id],
-    queryFn: () => api.fetchMonitorChecks(id!),
-    enabled: !!id,
-    refetchInterval: 5000,
-  });
+  const { data: checkData, isLoading: loadingChecks } = useQuery(
+    getMonitorChecksQueryOptions(id, CHECK_LIMIT),
+  );
 
-  // 3. Fetch Incidents
-  const { data: incidentData } = useQuery({
-    queryKey: ['monitor-incidents', id],
-    queryFn: () => api.fetchIncidents({ monitorId: id, limit: 10 }),
-    enabled: !!id,
-  });
+  const { data: incidentData } = useQuery(getMonitorIncidentsQueryOptions(id));
 
-  // 4. Fetch Stats (Uptime/Latency)
-  const { data: stats } = useQuery({
-    queryKey: ['monitor-stats', id],
-    queryFn: () => api.fetchMonitorStats(id!),
-    enabled: !!id,
-  });
+  const { data: stats } = useQuery(getMonitorStatsQueryOptions(id));
 
-  const getDuration = (start: string, end: string | null) => {
-    if (!end) return 'ONGOING';
-    const diffMs = new Date(end).getTime() - new Date(start).getTime();
-    const minutes = Math.floor(diffMs / 60000);
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins}m`;
-  };
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cleanup
+  useEffect(() => {
+    setCurrentStatus(null);
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const ws = api.subscribeToMonitor(id);
+    let alive = true;
+
+    ws.onmessage = event => {
+      if (!alive) return;
+
+      let message: MonitorBroadcast;
+      try {
+        message = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+
+      const nextStatus = message.payload.monitorStatus;
+
+      setCurrentStatus(prevStatus => {
+        if (prevStatus && prevStatus !== nextStatus) {
+          const startsIncident = nextStatus === 'DOWN';
+          const endsIncident =
+            nextStatus === 'UP' &&
+            (prevStatus === 'DOWN' || prevStatus === 'RECOVERING');
+
+          if (startsIncident || endsIncident) {
+            setTimeout(() => {
+              queryClient.invalidateQueries(
+                getMonitorIncidentsQueryOptions(id),
+              );
+            }, 500);
+          }
+        }
+
+        return nextStatus;
+      });
+
+      if (message.type === 'CHECK_COMPLETED') {
+        queryClient.setQueryData(
+          getMonitorChecksQueryOptions(id, CHECK_LIMIT).queryKey,
+          (old: { data: CheckResult[] } | undefined) => {
+            const prev = old?.data ?? [];
+
+            const next = [...prev, message.payload.check]
+              .sort(
+                (a, b) =>
+                  new Date(b.checkedAt).getTime() -
+                  new Date(a.checkedAt).getTime(),
+              )
+              .slice(0, CHECK_LIMIT);
+
+            return old ? { ...old, data: next } : { data: next };
+          },
+        );
+      }
+    };
+
+    ws.onerror = () => {
+      console.warn('WS error', id);
+    };
+
+    return () => {
+      alive = false;
+      ws.close();
+    };
+  }, [id]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        queryClient.invalidateQueries(
+          getMonitorChecksQueryOptions(id, CHECK_LIMIT),
+        );
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [id]);
 
   if (loadingMonitor || loadingChecks) {
     return (
@@ -68,7 +138,9 @@ export function MonitorDetailView() {
     );
   }
 
-  const isUp = monitor.status === 'UP' || monitor.status === 'RECOVERING';
+  const status = currentStatus ?? monitor.status;
+  const isUp = status === 'UP' || status === 'RECOVERING';
+
   const checks = checkData?.data || [];
   const incidents = incidentData?.data || [];
 
@@ -109,7 +181,7 @@ export function MonitorDetailView() {
                 isUp ? 'text-retro-green' : 'text-retro-red',
               )}
             >
-              {monitor.status}
+              {status}
             </div>
           </div>
 
@@ -280,3 +352,13 @@ export function MonitorDetailView() {
     </div>
   );
 }
+
+const getDuration = (start: string, end: string | null) => {
+  if (!end) return 'ONGOING';
+  const diffMs = new Date(end).getTime() - new Date(start).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours}h ${mins}m`;
+};
