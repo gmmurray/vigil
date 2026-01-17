@@ -102,6 +102,20 @@ app.post('/:id/check', async c => {
   return c.json(result);
 });
 
+app.get('/:id/sub', async c => {
+  const id = c.req.param('id');
+  const upgradeHeader = c.req.header('Upgrade');
+
+  if (!upgradeHeader || upgradeHeader !== 'websocket') {
+    return c.text('Expected Upgrade: websocket', 426);
+  }
+
+  const doId = c.env.MONITOR.idFromName(id);
+  const stub = c.env.MONITOR.get(doId);
+
+  return stub.fetch(c.req.raw);
+});
+
 app.get('/:id/checks', async c => {
   const id = c.req.param('id');
   const { limit, offset } = c.req.query();

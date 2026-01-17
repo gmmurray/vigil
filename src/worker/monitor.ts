@@ -8,10 +8,16 @@ import {
   monitors,
   notificationChannels,
 } from './schema';
-import type { CheckResult, MonitorConfig, MonitorStatus } from './types';
+import type {
+  CheckResult,
+  MonitorBroadcast,
+  MonitorConfig,
+  MonitorStatus,
+} from './types';
 
 export class MonitorObject extends DurableObject {
   private config: MonitorConfig | null = null;
+  private sessions: WebSocket[] = [];
 
   private consecutiveFailures = 0;
   private consecutiveSuccesses = 0;
@@ -19,6 +25,15 @@ export class MonitorObject extends DurableObject {
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+
+    if (request.headers.get('Upgrade') === 'websocket') {
+      const pair = new WebSocketPair();
+      const [client, server] = Object.values(pair);
+
+      this.handleConnection(server);
+
+      return new Response(null, { status: 101, webSocket: client });
+    }
 
     if (url.pathname === '/init' && request.method === 'POST') {
       const { monitorId } = (await request.json()) as { monitorId: string };
@@ -61,18 +76,62 @@ export class MonitorObject extends DurableObject {
     return new Response('Vigil Monitor DO', { status: 404 });
   }
 
-  async alarm() {
-    if (!this.config) {
-      const monitorId = await this.ctx.storage.get<string>('monitorId');
-      if (monitorId) await this.refreshConfig(monitorId);
-      else return;
+  handleConnection(webSocket: WebSocket) {
+    webSocket.accept();
+    this.sessions.push(webSocket);
+
+    if (this.config) {
+      try {
+        webSocket.send(
+          JSON.stringify({
+            type: 'STATUS_UPDATE',
+            payload: {
+              monitorStatus: this.config.status,
+            },
+          }),
+        );
+      } catch {
+        // If send fails immediately, connection is likely dead
+        this.sessions = this.sessions.filter(s => s !== webSocket);
+        return;
+      }
     }
 
-    if (!this.config || !this.config.enabled) return;
+    webSocket.addEventListener('close', () => {
+      this.sessions = this.sessions.filter(s => s !== webSocket);
+    });
+  }
 
-    await this.loadCounters();
-    await this.performCheckLifecycle();
-    await this.scheduleAlarm();
+  broadcast(message: MonitorBroadcast) {
+    const payload = JSON.stringify(message);
+    this.sessions = this.sessions.filter(session => {
+      try {
+        session.send(payload);
+        return true;
+      } catch {
+        // If send fails, assume client disconnected
+        return false;
+      }
+    });
+  }
+
+  async alarm() {
+    try {
+      if (!this.config) {
+        const monitorId = await this.ctx.storage.get<string>('monitorId');
+        if (monitorId) await this.refreshConfig(monitorId);
+        else return;
+      }
+
+      if (this.config?.enabled) {
+        await this.loadCounters();
+        await this.performCheckLifecycle();
+      }
+    } catch (err) {
+      console.error('Alarm failed:', err);
+    } finally {
+      await this.scheduleAlarm();
+    }
   }
 
   async loadCounters() {
@@ -90,114 +149,145 @@ export class MonitorObject extends DurableObject {
     );
   }
 
-  // Full check lifecycle: execute health check, persist result, update monitor state
   async performCheckLifecycle(): Promise<CheckResult> {
+    // 1. EXECUTE: Perform the network check
     const result = await this.check();
 
-    const db = createDb(this.env.DB);
-    await db.insert(checkResults).values({
-      id: ulid(),
-      monitorId: result.monitorId,
-      status: result.status,
-      responseTimeMs: result.responseTimeMs,
-      statusCode: result.statusCode,
-      error: result.error,
-      checkedAt: result.checkedAt,
+    const prevStatus = this.config?.status || 'DOWN';
+    const newStatus = this.calculateState(result);
+
+    this.broadcast({
+      type: 'CHECK_COMPLETED',
+      payload: {
+        check: result,
+        monitorStatus: newStatus,
+      },
     });
 
-    await this.updateState(result, db);
+    this.ctx.waitUntil(this.handleSideEffects(result, newStatus, prevStatus));
 
     return result;
   }
 
-  // State machine: UP <-> DEGRADED -> DOWN -> RECOVERING -> UP
-  // Requires THRESHOLD consecutive failures/successes for DOWN/UP transitions
-  async updateState(result: CheckResult, db: ReturnType<typeof createDb>) {
-    if (!this.config) return;
+  calculateState(result: CheckResult): MonitorStatus {
+    if (!this.config) return 'DOWN'; // Should not happen if initialized
 
-    let newStatus: MonitorStatus = this.config.status;
     const currentStatus = this.config.status;
+    let newStatus: MonitorStatus = currentStatus;
 
     if (result.status === 'DOWN') {
       this.consecutiveSuccesses = 0;
       this.consecutiveFailures++;
-      if (currentStatus === 'UP' || currentStatus === 'RECOVERING')
+
+      if (currentStatus === 'UP' || currentStatus === 'RECOVERING') {
         newStatus = 'DEGRADED';
-      else if (
+      } else if (
         currentStatus === 'DEGRADED' &&
         this.consecutiveFailures >= this.THRESHOLD
-      )
+      ) {
         newStatus = 'DOWN';
+      }
     } else {
       this.consecutiveFailures = 0;
       this.consecutiveSuccesses++;
-      if (currentStatus === 'DOWN') newStatus = 'RECOVERING';
-      else if (
+
+      if (currentStatus === 'DOWN') {
+        newStatus = 'RECOVERING';
+      } else if (
         currentStatus === 'RECOVERING' &&
         this.consecutiveSuccesses >= this.THRESHOLD
-      )
+      ) {
         newStatus = 'UP';
-      else if (currentStatus === 'DEGRADED') newStatus = 'UP';
+      } else if (currentStatus === 'DEGRADED') {
+        newStatus = 'UP';
+      }
     }
 
-    if (newStatus !== currentStatus) {
-      console.log(
-        `[${this.config.name}] State change: ${currentStatus} -> ${newStatus}`,
+    this.config.status = newStatus;
+
+    return newStatus;
+  }
+
+  async handleSideEffects(
+    result: CheckResult,
+    newStatus: MonitorStatus,
+    prevStatus: MonitorStatus,
+  ) {
+    const db = createDb(this.env.DB);
+    const tasks: Promise<unknown>[] = [];
+
+    tasks.push(
+      db.insert(checkResults).values({
+        id: result.id,
+        monitorId: result.monitorId,
+        status: result.status,
+        responseTimeMs: result.responseTimeMs,
+        statusCode: result.statusCode,
+        error: result.error,
+        checkedAt: result.checkedAt,
+      }),
+    );
+
+    tasks.push(this.saveCounters());
+
+    if (newStatus !== prevStatus) {
+      tasks.push(
+        db
+          .update(monitors)
+          .set({ status: newStatus, updatedAt: new Date().toISOString() })
+          .where(eq(monitors.id, this.config!.id)),
       );
 
-      await db
-        .update(monitors)
-        .set({ status: newStatus, updatedAt: new Date().toISOString() })
-        .where(eq(monitors.id, this.config.id));
+      tasks.push(
+        (async () => {
+          let incidentId: string | null = null;
 
-      let incidentId: string | null = null;
+          if (newStatus === 'DOWN') {
+            incidentId = ulid();
+            await db.insert(incidents).values({
+              id: incidentId,
+              monitorId: this.config!.id,
+              startedAt: new Date().toISOString(),
+              cause: result.error || `Status Code: ${result.statusCode}`,
+            });
+          } else if (
+            newStatus === 'UP' &&
+            (prevStatus === 'DOWN' || prevStatus === 'RECOVERING')
+          ) {
+            const openIncident = await db
+              .select()
+              .from(incidents)
+              .where(
+                and(
+                  eq(incidents.monitorId, this.config!.id),
+                  isNull(incidents.endedAt),
+                ),
+              )
+              .orderBy(desc(incidents.startedAt))
+              .limit(1)
+              .get();
 
-      if (newStatus === 'DOWN') {
-        incidentId = ulid();
-        await db.insert(incidents).values({
-          id: incidentId,
-          monitorId: this.config.id,
-          startedAt: new Date().toISOString(),
-          cause: result.error || `Status Code: ${result.statusCode}`,
-        });
-      } else if (
-        newStatus === 'UP' &&
-        (currentStatus === 'DOWN' || currentStatus === 'RECOVERING')
-      ) {
-        const openIncident = await db
-          .select()
-          .from(incidents)
-          .where(
-            and(
-              eq(incidents.monitorId, this.config.id),
-              isNull(incidents.endedAt),
-            ),
-          )
-          .orderBy(desc(incidents.startedAt))
-          .limit(1)
-          .get();
+            if (openIncident) {
+              incidentId = openIncident.id;
+              await db
+                .update(incidents)
+                .set({ endedAt: new Date().toISOString() })
+                .where(eq(incidents.id, incidentId));
+            }
+          }
 
-        if (openIncident) {
-          incidentId = openIncident.id;
-          await db
-            .update(incidents)
-            .set({ endedAt: new Date().toISOString() })
-            .where(eq(incidents.id, incidentId));
-        }
-      }
+          const shouldNotify =
+            newStatus === 'DOWN' ||
+            (newStatus === 'UP' && prevStatus !== 'DEGRADED');
 
-      // Send notifications for DOWN and full recovery (DEGRADED -> UP doesn't notify)
-      if (
-        newStatus === 'DOWN' ||
-        (newStatus === 'UP' && currentStatus !== 'DEGRADED')
-      ) {
-        await this.notify(newStatus, incidentId, result, db);
-      }
-
-      this.config.status = newStatus;
+          if (shouldNotify) {
+            await this.notify(newStatus, incidentId, result, db);
+          }
+        })(),
+      );
     }
 
-    await this.saveCounters();
+    await Promise.allSettled(tasks);
   }
 
   async notify(

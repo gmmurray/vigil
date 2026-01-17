@@ -27,3 +27,20 @@ export interface MonitorConfig extends Omit<Monitor, 'status' | 'headers'> {
   status: MonitorStatus;
   headers: Record<string, string> | null;
 }
+
+type CheckCompletedMessage = {
+  type: 'CHECK_COMPLETED';
+  payload: {
+    check: CheckResult;
+    monitorStatus: MonitorStatus;
+  };
+};
+
+type StatusUpdateMessage = {
+  type: 'STATUS_UPDATE';
+  payload: {
+    monitorStatus: MonitorStatus;
+  };
+};
+
+export type MonitorBroadcast = CheckCompletedMessage | StatusUpdateMessage;
