@@ -54,7 +54,7 @@ export function MonitorFormView() {
   if (isEditMode && isLoading) {
     return (
       <div className="panel animate-pulse text-gold-dim font-mono text-center p-8">
-        :: LOADING CONFIG ::
+        :: ACCESSING ::
       </div>
     );
   }

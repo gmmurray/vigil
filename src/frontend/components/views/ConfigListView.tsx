@@ -22,7 +22,7 @@ export function ConfigListView() {
   if (isLoading) {
     return (
       <div className="panel animate-pulse text-gold-dim font-mono text-center p-8">
-        :: LOADING CONFIG ::
+        :: ACCESSING ::
       </div>
     );
   }
@@ -36,20 +36,21 @@ export function ConfigListView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-end">
-        {/* Left side search */}
+      <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
         <SearchInput
           value={search}
           onChange={setSearch}
           placeholder="Search config..."
         />
 
-        <Link to="/config/add" className="btn-gold active no-underline">
-          + Add Monitor
-        </Link>
+        <div>
+          <Link to="/config/add" className="btn-gold active no-underline">
+            + Add Monitor
+          </Link>
+        </div>
       </div>
 
-      <div className="panel p-0 overflow-hidden">
+      <div className="panel p-0 overflow-x-auto overflow-y-visible theme-table-scroll">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-gold-faint bg-active/50 text-xs uppercase text-gold-dim">
@@ -78,8 +79,7 @@ export function ConfigListView() {
                 <td className="p-4 font-mono text-xs text-gold-dim">
                   {monitor.url}
                 </td>
-                <td className="p-4 text-right space-x-3">
-                  {/* NEW: Direct View Link */}
+                <td className="flex p-4 text-right space-x-3">
                   <Link
                     to={`/monitors/${monitor.id}`}
                     className="text-xs uppercase hover:text-gold-primary text-gold-dim transition-colors"

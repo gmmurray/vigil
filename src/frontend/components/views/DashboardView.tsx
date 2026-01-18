@@ -15,7 +15,6 @@ export function DashboardView() {
   } = useQuery<Monitor[]>({
     queryKey: ['monitors'],
     queryFn: api.fetchMonitors,
-    // Poll every 5 seconds for live status updates
     refetchInterval: 5000,
   });
 
@@ -29,7 +28,7 @@ export function DashboardView() {
   if (isLoading) {
     return (
       <div className="panel h-32 flex items-center justify-center font-mono text-gold-dim animate-pulse">
-        :: INITIALIZING DATALINK ::
+        :: ACCESSING ::
       </div>
     );
   }
@@ -53,22 +52,21 @@ export function DashboardView() {
       <KPIGrid enabledCount={enabledCount} downCount={downCount} />
 
       <div className="flex flex-col gap-4">
-        {/* Toolbar Row */}
-        <div className="flex justify-between items-end">
+        <div className="flex flex-col md:flex-row justify-between md:items-end gap-1">
           <div className="text-xs uppercase tracking-widest text-gold-dim">
             Monitors ({filteredMonitors.length})
           </div>
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Filter monitors..."
+            placeholder="Filter..."
           />
         </div>
 
         <div className="bg-panel border border-gold-faint">
           {filteredMonitors.length === 0 ? (
             <div className="p-8 text-center text-gold-dim font-mono text-sm">
-              {search ? 'NO MATCHING MONITORS' : 'NO MONITORS CONFIGURED'}
+              {search ? 'NO MATCHES' : 'NO MONITORS CONFIGURED'}
             </div>
           ) : (
             filteredMonitors.map(monitor => (

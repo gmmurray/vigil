@@ -15,10 +15,10 @@ export const getMonitorChecksQueryOptions = (id?: string, limit?: number) =>
     enabled: !!id,
   });
 
-export const getMonitorIncidentsQueryOptions = (id?: string) =>
+export const getMonitorIncidentsQueryOptions = (id?: string, limit?: number) =>
   queryOptions({
     queryKey: ['monitor-incidents', id],
-    queryFn: () => api.fetchIncidents({ monitorId: id, limit: 10 }),
+    queryFn: () => api.fetchIncidents({ monitorId: id, limit }),
     enabled: !!id,
   });
 

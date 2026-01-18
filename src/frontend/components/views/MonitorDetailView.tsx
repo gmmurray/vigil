@@ -9,10 +9,12 @@ import {
   getMonitorQueryOptions,
   getMonitorStatsQueryOptions,
 } from '../../lib/queries';
-import { cn } from '../../lib/utils';
+import { cn, getDuration } from '../../lib/utils';
 import type { CheckResult, MonitorBroadcast, MonitorStatus } from '../../types';
 import { ResponseTimeChart } from '../monitors/ResponseTimeChart';
+import TablePanel from '../ui/TablePanel';
 
+const INCIDENT_LIMIT = 10;
 const CHECK_LIMIT = 50;
 
 export function MonitorDetailView() {
@@ -29,7 +31,9 @@ export function MonitorDetailView() {
     getMonitorChecksQueryOptions(id, CHECK_LIMIT),
   );
 
-  const { data: incidentData } = useQuery(getMonitorIncidentsQueryOptions(id));
+  const { data: incidentData } = useQuery(
+    getMonitorIncidentsQueryOptions(id, INCIDENT_LIMIT),
+  );
 
   const { data: stats } = useQuery(getMonitorStatsQueryOptions(id));
 
@@ -141,7 +145,7 @@ export function MonitorDetailView() {
   if (loadingMonitor || loadingChecks) {
     return (
       <div className="panel animate-pulse text-gold-dim font-mono text-center p-8">
-        :: LOADING ::
+        :: ACCESSING ::
       </div>
     );
   }
@@ -287,13 +291,9 @@ export function MonitorDetailView() {
         <ResponseTimeChart checks={checks} />
       </div>
 
-      {/* Incident History Table */}
       {incidents.length > 0 && (
-        <div className="panel p-0 overflow-hidden">
-          <div className="bg-active/50 px-4 py-2 border-b border-gold-faint text-xs uppercase text-gold-dim font-medium">
-            Recorded Incidents (Last 10)
-          </div>
-          <table className="w-full text-left border-collapse text-sm font-mono">
+        <TablePanel title={`Recorded Incidents (Last ${INCIDENT_LIMIT})`}>
+          <table className="text-left border-collapse text-sm font-mono w-full">
             <thead>
               <tr className="border-b border-gold-faint text-gold-dim text-xs">
                 <th className="p-3 font-normal">Severity</th>
@@ -336,68 +336,52 @@ export function MonitorDetailView() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TablePanel>
       )}
 
-      {/* Recent Activity Log */}
-      <div className="panel p-0 overflow-hidden">
-        <div className="bg-active/50 px-4 py-2 border-b border-gold-faint text-xs uppercase text-gold-dim font-medium">
-          Recent Activity Log
-        </div>
-        <div className="max-h-100 overflow-y-auto scrollable-activity-log">
-          <table className="w-full text-left border-collapse text-sm font-mono">
-            <thead>
-              <tr className="border-b border-gold-faint text-gold-dim text-xs">
-                <th className="p-3 font-normal">Time</th>
-                <th className="p-3 font-normal">Status</th>
-                <th className="p-3 font-normal">Code</th>
-                <th className="p-3 font-normal text-right">Latency</th>
-              </tr>
-            </thead>
-            <tbody>
-              {checks.map(check => (
-                <tr
-                  key={check.id}
-                  className="border-b border-gold-faint/50 last:border-0 hover:bg-active/30 transition-colors"
+      <TablePanel title={`Recent Activity Log (Last ${CHECK_LIMIT})`}>
+        <table className="w-full text-left border-collapse text-sm font-mono">
+          <thead>
+            <tr className="border-b border-gold-faint text-gold-dim text-xs">
+              <th className="p-3 font-normal">Time</th>
+              <th className="p-3 font-normal">Status</th>
+              <th className="p-3 font-normal">Code</th>
+              <th className="p-3 font-normal text-right">Latency</th>
+            </tr>
+          </thead>
+          <tbody>
+            {checks.map(check => (
+              <tr
+                key={check.id}
+                className="border-b border-gold-faint/50 last:border-0 hover:bg-active/30 transition-colors"
+              >
+                <td
+                  className="p-3 text-gold-dim cursor-help"
+                  title={check.checkedAt}
                 >
-                  <td
-                    className="p-3 text-gold-dim cursor-help"
-                    title={check.checkedAt}
-                  >
-                    {new Date(check.checkedAt).toLocaleTimeString()}
-                  </td>
-                  <td
-                    className={cn(
-                      'p-3',
-                      check.status === 'UP'
-                        ? 'text-retro-green'
-                        : 'text-retro-red',
-                    )}
-                  >
-                    {check.status}
-                  </td>
-                  <td className="p-3 text-gold-primary">
-                    {check.statusCode ?? 'ERR'}
-                  </td>
-                  <td className="p-3 text-right text-gold-dim">
-                    {check.responseTimeMs}ms
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  {new Date(check.checkedAt).toLocaleTimeString()}
+                </td>
+                <td
+                  className={cn(
+                    'p-3',
+                    check.status === 'UP'
+                      ? 'text-retro-green'
+                      : 'text-retro-red',
+                  )}
+                >
+                  {check.status}
+                </td>
+                <td className="p-3 text-gold-primary">
+                  {check.statusCode ?? 'ERR'}
+                </td>
+                <td className="p-3 text-right text-gold-dim">
+                  {check.responseTimeMs}ms
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TablePanel>
     </div>
   );
 }
-
-const getDuration = (start: string, end: string | null) => {
-  if (!end) return 'ONGOING';
-  const diffMs = new Date(end).getTime() - new Date(start).getTime();
-  const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${hours}h ${mins}m`;
-};
