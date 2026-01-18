@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { RefreshCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, queryClient } from '../../lib/api';
@@ -31,6 +32,26 @@ export function MonitorDetailView() {
   const { data: incidentData } = useQuery(getMonitorIncidentsQueryOptions(id));
 
   const { data: stats } = useQuery(getMonitorStatsQueryOptions(id));
+
+  const checkMutation = useMutation({
+    mutationFn: api.checkMonitor,
+    onSuccess: () => {
+      setTimeout(() => {
+        queryClient.invalidateQueries(
+          getMonitorChecksQueryOptions(id, CHECK_LIMIT),
+        );
+        queryClient.invalidateQueries(getMonitorStatsQueryOptions(id));
+      }, 1000);
+    },
+  });
+
+  const handleManualCheck = () => {
+    if (!id) {
+      return;
+    }
+
+    return checkMutation.mutate(id);
+  };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: cleanup
   useEffect(() => {
@@ -167,22 +188,40 @@ export function MonitorDetailView() {
         </div>
       </div>
 
-      {/* NEW LAYOUT: Split Panels */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT PANEL: Live Health Metrics (2/3 Width) */}
         <div className="panel lg:col-span-2 flex flex-col justify-between min-h-40">
-          <div>
-            <div className="text-xs uppercase tracking-widest text-gold-dim mb-2">
-              Current Status
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <div className="text-xs uppercase tracking-widest text-gold-dim mb-2">
+                Current Status
+              </div>
+              <div
+                className={cn(
+                  'text-5xl font-mono tracking-tight',
+                  isUp ? 'text-retro-green' : 'text-retro-red',
+                )}
+              >
+                {status}
+              </div>
             </div>
-            <div
-              className={cn(
-                'text-5xl font-mono tracking-tight',
-                isUp ? 'text-retro-green' : 'text-retro-red',
-              )}
+
+            <button
+              type="button"
+              onClick={handleManualCheck}
+              disabled={checkMutation.isPending}
+              className="group flex items-center gap-2 text-xs font-mono text-gold-dim hover:text-gold-primary disabled:opacity-50 transition-colors cursor-pointer"
+              title="Trigger Manual Check"
             >
-              {status}
-            </div>
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity uppercase text-[10px]">
+                {checkMutation.isPending ? 'PINGING...' : 'RUN CHECK'}
+              </span>
+              <RefreshCcw
+                size={14}
+                className={cn(
+                  checkMutation.isPending && 'animate-spin text-retro-green',
+                )}
+              />
+            </button>
           </div>
 
           <div className="grid grid-cols-2 gap-8 mt-6 border-t border-gold-faint pt-4">
@@ -205,7 +244,6 @@ export function MonitorDetailView() {
           </div>
         </div>
 
-        {/* RIGHT PANEL: Configuration Details (1/3 Width) */}
         <div className="panel flex flex-col gap-4 justify-center bg-active/5">
           <div className="text-xs uppercase tracking-widest text-gold-dim border-b border-gold-faint pb-2 mb-1">
             Configuration
@@ -227,8 +265,9 @@ export function MonitorDetailView() {
 
           <div className="flex justify-between items-center text-sm">
             <span className="text-gold-dim">Timeout</span>
-            <span className="font-mono text-gold-primary">5s</span>{' '}
-            {/* Default/Implied */}
+            <span className="font-mono text-gold-primary">
+              {monitor.timeoutMs / 1000}s
+            </span>
           </div>
 
           <div className="flex justify-between items-center text-sm">

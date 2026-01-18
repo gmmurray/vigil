@@ -85,6 +85,17 @@ export const api = {
     const wsUrl = getWsUrl(`/monitors/${id}/sub`);
     return new WebSocket(wsUrl);
   },
+
+  checkMonitor: async (monitorId: string) => {
+    const res = await fetch(
+      `${API_BASE}/monitors/${monitorId}/check?force=true`,
+      {
+        method: 'POST',
+      },
+    );
+    if (!res.ok) throw new Error('Failed to check monitor');
+    return res.json();
+  },
 };
 
 const getWsUrl = (path: string) => {
