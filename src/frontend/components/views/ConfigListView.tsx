@@ -79,7 +79,7 @@ export function ConfigListView() {
                 <td className="p-4 font-mono text-xs text-gold-dim">
                   {monitor.url}
                 </td>
-                <td className="flex p-4 text-right space-x-3">
+                <td className="flex p-4 justify-end gap-3">
                   <Link
                     to={`/monitors/${monitor.id}`}
                     className="text-xs uppercase hover:text-gold-primary text-gold-dim transition-colors"
