@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useDeleteChannel } from '../../lib/queries';
@@ -6,6 +7,22 @@ import { type ChannelFormData, channelSchema } from '../../lib/schemas';
 import { cn } from '../../lib/utils';
 import type { Channel } from '../../types';
 import { ErrorMsg, Input, Label } from '../ui/FormControls';
+
+const SAMPLE_WEBHOOK_PAYLOAD = {
+  monitor: {
+    id: '01ABC123...',
+    name: 'Production API',
+    url: 'https://api.example.com/health',
+  },
+  event: 'DOWN',
+  incident_id: '01XYZ789...',
+  timestamp: '2025-01-15T10:30:00.000Z',
+  details: {
+    status_code: 500,
+    error: 'Connection timeout',
+    response_time: 5000,
+  },
+};
 
 interface ChannelFormProps {
   defaultValues?: Channel;
@@ -104,17 +121,7 @@ export function ChannelForm({
       </div>
 
       {channelType === 'WEBHOOK' && (
-        <div>
-          <Label>Webhook URL</Label>
-          <Input
-            {...register('config.url')}
-            placeholder="https://hooks.example.com/webhook"
-          />
-          <ErrorMsg>{errors.config?.url?.message}</ErrorMsg>
-          <p className="text-xs text-gold-dim mt-2">
-            Receives POST requests with JSON payload when monitor status changes
-          </p>
-        </div>
+        <WebhookFields register={register} errors={errors} />
       )}
 
       <div className="flex justify-end gap-3 pt-4 border-t border-gold-faint mt-4">
@@ -130,5 +137,47 @@ export function ChannelForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function WebhookFields({
+  register,
+  errors,
+}: {
+  register: ReturnType<typeof useForm<ChannelFormData>>['register'];
+  errors: ReturnType<typeof useForm<ChannelFormData>>['formState']['errors'];
+}) {
+  const [showPayload, setShowPayload] = useState(false);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label>Webhook URL</Label>
+        <Input
+          {...register('config.url')}
+          placeholder="https://hooks.example.com/webhook"
+        />
+        <ErrorMsg>{errors.config?.url?.message}</ErrorMsg>
+        <p className="text-xs text-gold-dim mt-2">
+          Receives POST requests with JSON payload when monitor status changes
+        </p>
+      </div>
+
+      <div className="border border-gold-faint">
+        <button
+          type="button"
+          onClick={() => setShowPayload(!showPayload)}
+          className="w-full px-3 py-2 text-left text-xs uppercase text-gold-dim hover:text-gold-primary hover:bg-active/30 cursor-pointer transition-colors flex justify-between items-center"
+        >
+          <span>Sample Payload</span>
+          <span className="font-mono">{showPayload ? '[-]' : '[+]'}</span>
+        </button>
+        {showPayload && (
+          <pre className="p-3 text-xs font-mono text-gold-dim bg-active/20 overflow-x-auto border-t border-gold-faint">
+            {JSON.stringify(SAMPLE_WEBHOOK_PAYLOAD, null, 2)}
+          </pre>
+        )}
+      </div>
+    </div>
   );
 }
