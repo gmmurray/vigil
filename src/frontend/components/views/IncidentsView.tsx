@@ -1,22 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+
 import { Link } from 'react-router-dom';
-import { api } from '../../lib/api';
+import {
+  getIncidentsQueryOptions,
+  getMonitorsQueryOptions,
+} from '../../lib/queries';
 import { cn, getDuration } from '../../lib/utils';
-import type { Monitor } from '../../types';
 
 export function IncidentsView() {
   const [showHistory, setShowHistory] = useState(false);
 
-  const { data: incidentData, isLoading: loadingIncidents } = useQuery({
-    queryKey: ['incidents', showHistory ? 'all' : 'active'],
-    queryFn: () => api.fetchIncidents({ active: !showHistory, limit: 100 }),
-    refetchInterval: 10000,
-  });
+  const { data: incidentData, isLoading: loadingIncidents } = useQuery(
+    getIncidentsQueryOptions(!showHistory),
+  );
 
-  const { data: monitors } = useQuery<Monitor[]>({
-    queryKey: ['monitors'],
-    queryFn: api.fetchMonitors,
+  const { data: monitors } = useQuery({
+    ...getMonitorsQueryOptions,
     staleTime: 60000,
   });
 

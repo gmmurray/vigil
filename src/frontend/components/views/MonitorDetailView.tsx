@@ -156,7 +156,7 @@ export function MonitorDetailView() {
         <div className="text-retro-red font-mono mb-4">
           ERROR: MONITOR NOT FOUND
         </div>
-        <Link to="/" className="btn-gold">
+        <Link to="/dashboard" className="btn-gold">
           Back to dashboard
         </Link>
       </div>
@@ -175,7 +175,7 @@ export function MonitorDetailView() {
       <div className="flex justify-between items-end">
         <div>
           <Link
-            to="/"
+            to="/dashboard"
             className="text-xs text-gold-dim hover:text-gold-primary mb-2 font-mono"
           >
             &lt; BACK TO DASHBOARD

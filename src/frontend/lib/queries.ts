@@ -1,6 +1,11 @@
 import { queryOptions, useMutation } from '@tanstack/react-query';
 import { api, queryClient } from './api';
 
+export const getMonitorsQueryOptions = queryOptions({
+  queryKey: ['monitors'],
+  queryFn: api.fetchMonitors,
+});
+
 export const getMonitorQueryOptions = (id?: string) =>
   queryOptions({
     queryKey: ['monitor', id],
@@ -53,4 +58,11 @@ export const useDeleteChannel = () =>
   useMutation({
     mutationFn: api.deleteChannel,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['channels'] }),
+  });
+
+export const getIncidentsQueryOptions = (activeOnly: boolean) =>
+  queryOptions({
+    queryKey: ['incidents', { activeOnly }],
+    queryFn: () => api.fetchIncidents({ active: activeOnly, limit: 100 }),
+    refetchInterval: 10000,
   });

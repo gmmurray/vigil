@@ -1,20 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api } from '../../lib/api';
-import type { Monitor } from '../../types';
+import { getMonitorsQueryOptions } from '../../lib/queries';
 import { KPIGrid } from '../dashboard/KPIGrid';
 import { MonitorRow } from '../dashboard/MonitorRow';
 import { SearchInput } from '../ui/SearchInput';
 
 export function DashboardView() {
   const [search, setSearch] = useState('');
+
   const {
     data: monitors,
     isLoading,
     isError,
-  } = useQuery<Monitor[]>({
-    queryKey: ['monitors'],
-    queryFn: api.fetchMonitors,
+  } = useQuery({
+    ...getMonitorsQueryOptions,
     refetchInterval: 5000,
   });
 
