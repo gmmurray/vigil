@@ -11,7 +11,11 @@
     "dev": "vite",
     "preview": "pnpm run build && vite preview",
     "migrate:local": "wrangler d1 migrations apply DB --local",
-    "migrate:remote": "wrangler d1 migrations apply DB --remote"
+    "migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:integration": "vitest --config vitest.config.integration.ts",
+    "test:integration:run": "vitest run --config vitest.config.integration.ts"
   },
   "type": "module",
   "packageManager": "pnpm@10.22.0+sha512.bf049efe995b28f527fd2b41ae0474ce29186f7edcb3bf545087bd61fbbebb2bf75362d1307fda09c2d288e1e499787ac12d4fcb617a974718a6051f2eee741c",
@@ -33,20 +37,29 @@
     "ulid": "^3.0.2",
     "zod": "^3.25.76"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "workerd"
+    ]
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.3.11",
     "@cloudflare/vite-plugin": "^1.21.0",
-    "@cloudflare/workers-types": "^4.20260116.0",
+    "@cloudflare/vitest-pool-workers": "^0.12.8",
+    "@cloudflare/workers-types": "^4.20260130.0",
     "@types/node": "^25.0.9",
     "@types/react": "^19.2.8",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
     "@vitejs/plugin-react-swc": "^4.2.2",
+    "@vitest/runner": "~3.2.4",
+    "@vitest/snapshot": "~3.2.4",
     "drizzle-kit": "^0.31.8",
     "globals": "^17.0.0",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
+    "vitest": "^3.2.4",
     "wrangler": "^4.59.2"
   }
 }

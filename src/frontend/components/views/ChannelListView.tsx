@@ -42,7 +42,10 @@ export function ChannelListView() {
           <Link to="/config" className="btn-gold no-underline">
             &lt; Back to Config
           </Link>
-          <Link to="/config/channels/add" className="btn-gold active no-underline">
+          <Link
+            to="/config/channels/add"
+            className="btn-gold active no-underline"
+          >
             + Add Channel
           </Link>
         </div>

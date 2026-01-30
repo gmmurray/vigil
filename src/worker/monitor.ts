@@ -3,6 +3,12 @@ import { and, desc, eq, isNull } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { createDb } from './db';
 import {
+  calculateNextState,
+  isStatusCodeValid,
+  parseExpectedStatusCodes,
+  shouldNotify,
+} from './lib/state-machine';
+import {
   checkResults,
   incidents,
   monitors,
@@ -166,39 +172,20 @@ export class MonitorObject extends DurableObject {
   }
 
   calculateState(result: CheckResult): MonitorStatus {
-    if (!this.config) return 'DOWN'; // Should not happen if initialized
+    if (!this.config) return 'DOWN';
 
-    const currentStatus = this.config.status;
-    let newStatus: MonitorStatus = currentStatus;
+    const { newStatus, counters } = calculateNextState(
+      this.config.status,
+      result.status === 'UP',
+      {
+        consecutiveFailures: this.consecutiveFailures,
+        consecutiveSuccesses: this.consecutiveSuccesses,
+      },
+      this.THRESHOLD,
+    );
 
-    if (result.status === 'DOWN') {
-      this.consecutiveSuccesses = 0;
-      this.consecutiveFailures++;
-
-      if (currentStatus === 'UP' || currentStatus === 'RECOVERING') {
-        newStatus = 'DEGRADED';
-      } else if (
-        currentStatus === 'DEGRADED' &&
-        this.consecutiveFailures >= this.THRESHOLD
-      ) {
-        newStatus = 'DOWN';
-      }
-    } else {
-      this.consecutiveFailures = 0;
-      this.consecutiveSuccesses++;
-
-      if (currentStatus === 'DOWN') {
-        newStatus = 'RECOVERING';
-      } else if (
-        currentStatus === 'RECOVERING' &&
-        this.consecutiveSuccesses >= this.THRESHOLD
-      ) {
-        newStatus = 'UP';
-      } else if (currentStatus === 'DEGRADED') {
-        newStatus = 'UP';
-      }
-    }
-
+    this.consecutiveFailures = counters.consecutiveFailures;
+    this.consecutiveSuccesses = counters.consecutiveSuccesses;
     this.config.status = newStatus;
 
     return newStatus;
@@ -272,11 +259,7 @@ export class MonitorObject extends DurableObject {
             }
           }
 
-          const shouldNotify =
-            newStatus === 'DOWN' ||
-            (newStatus === 'UP' && prevStatus !== 'DEGRADED');
-
-          if (shouldNotify) {
+          if (shouldNotify(prevStatus, newStatus)) {
             await this.notify(newStatus, incidentId, result, db);
           }
         })(),
@@ -287,7 +270,7 @@ export class MonitorObject extends DurableObject {
   }
 
   async notify(
-    event: 'UP' | 'DOWN',
+    event: MonitorStatus,
     incidentId: string | null,
     result: CheckResult,
     db: ReturnType<typeof createDb>,
@@ -386,11 +369,9 @@ export class MonitorObject extends DurableObject {
       clearTimeout(timeoutId);
       statusCode = resp.status;
 
-      const validCodes = this.config.expectedStatus
-        .split(',')
-        .map(s => parseInt(s.trim(), 10));
+      const validCodes = parseExpectedStatusCodes(this.config.expectedStatus);
 
-      if (validCodes.includes(statusCode)) {
+      if (isStatusCodeValid(statusCode, validCodes)) {
         status = 'UP';
       } else {
         error = `Unexpected status code: ${statusCode}`;
