@@ -8,7 +8,8 @@
   "files": {
     "includes": [
       "**",
-      "!!src/frontend/components/ui",
+      "!!.wrangler",
+      "!!dist",
       "!!src/frontend/routeTree.gen.ts",
       "!!worker-configuration.d.ts"
     ],
@@ -32,6 +33,9 @@
       },
       "nursery": {
         "useSortedClasses": "off"
+      },
+      "a11y": {
+        "noLabelWithoutControl": "off"
       }
     }
   },

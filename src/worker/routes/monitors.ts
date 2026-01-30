@@ -63,6 +63,74 @@ app.post('/', async c => {
   return c.json(newMonitor, 201);
 });
 
+app.post('/test', async c => {
+  const body = await c.req.json();
+  const {
+    url,
+    method = 'GET',
+    timeoutMs = 5000,
+    expectedStatus = '200',
+  } = body;
+
+  if (!url) {
+    return c.json({ error: 'URL is required' }, 400);
+  }
+
+  try {
+    new URL(url);
+  } catch {
+    return c.json({ success: false, error: 'Invalid URL format' }, 400);
+  }
+
+  const expectedCodes = expectedStatus
+    .split(',')
+    .map((s: string) => Number.parseInt(s.trim(), 10))
+    .filter((n: number) => !Number.isNaN(n));
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  const startTime = Date.now();
+  try {
+    const response = await fetch(url, {
+      method,
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Vigil-Monitor/1.0',
+      },
+    });
+
+    clearTimeout(timeoutId);
+    const responseTime = Date.now() - startTime;
+    const statusMatch = expectedCodes.includes(response.status);
+
+    return c.json({
+      success: statusMatch,
+      statusCode: response.status,
+      responseTime,
+      error: statusMatch
+        ? null
+        : `Expected ${expectedStatus}, got ${response.status}`,
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    const responseTime = Date.now() - startTime;
+    const message =
+      err instanceof Error
+        ? err.name === 'AbortError'
+          ? `Timeout after ${timeoutMs}ms`
+          : err.message
+        : 'Unknown error';
+
+    return c.json({
+      success: false,
+      statusCode: null,
+      responseTime,
+      error: message,
+    });
+  }
+});
+
 app.get('/:id', async c => {
   const id = c.req.param('id');
   const db = createDb(c.env.DB);

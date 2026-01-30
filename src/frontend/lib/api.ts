@@ -97,6 +97,26 @@ export const api = {
     return res.json();
   },
 
+  testMonitorUrl: async (config: {
+    url: string;
+    method: string;
+    timeoutMs: number;
+    expectedStatus: string;
+  }) => {
+    const res = await fetch(`${API_BASE}/monitors/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!res.ok) throw new Error('Failed to test URL');
+    return res.json() as Promise<{
+      success: boolean;
+      statusCode: number | null;
+      responseTime: number;
+      error: string | null;
+    }>;
+  },
+
   // Channels
   fetchChannels: async () => {
     const res = await fetch(`${API_BASE}/channels`);

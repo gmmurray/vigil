@@ -1,6 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
+import { api } from '../../lib/api';
 import { useDeleteConfig } from '../../lib/queries';
 import { type MonitorFormData, monitorSchema } from '../../lib/schemas';
 import { cn } from '../../lib/utils';
@@ -28,6 +30,7 @@ export function MonitorForm({
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(monitorSchema),
@@ -45,6 +48,11 @@ export function MonitorForm({
           enabled: true,
         },
   });
+
+  const watchedUrl = watch('url') || '';
+  const watchedMethod = watch('method') || 'GET';
+  const watchedTimeout = watch('timeoutMs') || 5000;
+  const watchedExpectedStatus = watch('expectedStatus') || '200';
 
   const handleDelete = () => {
     if (!defaultValues) {
@@ -83,13 +91,23 @@ export function MonitorForm({
           <ErrorMsg>{errors.name?.message}</ErrorMsg>
         </div>
 
-        <div>
-          <Label>Endpoint URL</Label>
-          <Input
-            {...register('url')}
-            placeholder="https://api.example.com/health"
-          />
-          <ErrorMsg>{errors.url?.message}</ErrorMsg>
+        <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
+          <div>
+            <Label>Endpoint URL</Label>
+            <Input
+              {...register('url')}
+              placeholder="https://api.example.com/health"
+            />
+            <ErrorMsg>{errors.url?.message}</ErrorMsg>
+          </div>
+          <div className="pt-6">
+            <UrlTestButton
+              url={watchedUrl}
+              method={watchedMethod}
+              timeoutMs={Number(watchedTimeout)}
+              expectedStatus={watchedExpectedStatus}
+            />
+          </div>
         </div>
       </div>
 
@@ -153,5 +171,87 @@ export function MonitorForm({
         </button>
       </div>
     </form>
+  );
+}
+
+interface UrlTestButtonProps {
+  url: string;
+  method: string;
+  timeoutMs: number;
+  expectedStatus: string;
+}
+
+function UrlTestButton({
+  url,
+  method,
+  timeoutMs,
+  expectedStatus,
+}: UrlTestButtonProps) {
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    statusCode: number | null;
+    responseTime: number;
+    error: string | null;
+  } | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
+
+  const handleTest = async () => {
+    if (!url) return;
+
+    setIsTesting(true);
+    setTestResult(null);
+
+    try {
+      const result = await api.testMonitorUrl({
+        url,
+        method,
+        timeoutMs: Number(timeoutMs) || 5000,
+        expectedStatus: expectedStatus || '200',
+      });
+      setTestResult(result);
+    } catch {
+      setTestResult({
+        success: false,
+        statusCode: null,
+        responseTime: 0,
+        error: 'Failed to run test',
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={handleTest}
+        disabled={!url || isTesting}
+        className={cn(
+          'btn-gold whitespace-nowrap',
+          (!url || isTesting) && 'opacity-50 cursor-not-allowed',
+        )}
+      >
+        {isTesting ? 'Testing...' : 'Test URL'}
+      </button>
+      {testResult && (
+        <div
+          className={cn(
+            'col-span-full px-3 py-2 text-xs font-mono border',
+            testResult.success
+              ? 'border-retro-green bg-retro-green/10 text-retro-green'
+              : 'border-retro-red bg-retro-red/10 text-retro-red',
+          )}
+        >
+          {testResult.success ? (
+            <span>
+              OK: {testResult.statusCode} in {testResult.responseTime}ms
+            </span>
+          ) : (
+            <span>FAILED: {testResult.error}</span>
+          )}
+        </div>
+      )}
+    </>
   );
 }

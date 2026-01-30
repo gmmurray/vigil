@@ -31,7 +31,10 @@ export function EmptyState({ title, description, action }: EmptyStateProps) {
 export function TableEmptyRow({
   colSpan,
   children,
-}: { colSpan: number; children: React.ReactNode }) {
+}: {
+  colSpan: number;
+  children: React.ReactNode;
+}) {
   return (
     <tr>
       <td colSpan={colSpan} className="p-8 text-center text-gold-dim font-mono">
