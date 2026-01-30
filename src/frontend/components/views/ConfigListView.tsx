@@ -1,8 +1,8 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-
 import { Link } from 'react-router-dom';
-import { api, queryClient } from '../../lib/api';
+import { api } from '../../lib/api';
+import { useDeleteConfig } from '../../lib/queries';
 import { cn } from '../../lib/utils';
 import type { Monitor } from '../../types';
 import { SearchInput } from '../ui/SearchInput';
@@ -14,10 +14,7 @@ export function ConfigListView() {
     queryFn: api.fetchMonitors,
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: api.deleteMonitor,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['monitors'] }),
-  });
+  const deleteMutation = useDeleteConfig();
 
   if (isLoading) {
     return (
@@ -101,7 +98,7 @@ export function ConfigListView() {
                         deleteMutation.mutate(monitor.id);
                       }
                     }}
-                    className="text-xs uppercase hover:text-retro-red text-gold-dim transition-colors"
+                    className="text-xs uppercase hover:text-retro-red text-gold-dim transition-colors cursor-pointer"
                   >
                     Delete
                   </button>

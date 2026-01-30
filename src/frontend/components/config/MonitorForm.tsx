@@ -1,5 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
+import { useDeleteConfig } from '../../lib/queries';
 import { type MonitorFormData, monitorSchema } from '../../lib/schemas';
 import { cn } from '../../lib/utils';
 import type { Monitor } from '../../types';
@@ -18,6 +20,9 @@ export function MonitorForm({
   onCancel,
   isSubmitting,
 }: MonitorFormProps) {
+  const navigate = useNavigate();
+  const deleteMutation = useDeleteConfig();
+
   const {
     register,
     handleSubmit,
@@ -38,10 +43,32 @@ export function MonitorForm({
         },
   });
 
+  const handleDelete = () => {
+    if (!defaultValues) {
+      return;
+    }
+    if (confirm('Are you sure? This deletes all history.')) {
+      deleteMutation.mutate(defaultValues.id, {
+        onSuccess: () => navigate('/config'),
+      });
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="panel space-y-6">
-      <div className="text-lg font-medium text-gold-primary border-b border-gold-faint pb-2 mb-6">
-        {defaultValues ? 'EDIT MONITOR' : 'NEW MONITOR'}
+      <div className="text-lg font-medium text-gold-primary border-b border-gold-faint pb-2 mb-6 flex justify-between">
+        <div>{defaultValues ? 'EDIT MONITOR' : 'NEW MONITOR'}</div>
+        {defaultValues && (
+          <div>
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="text-xs uppercase hover:text-retro-red text-gold-dim transition-colors cursor-pointer"
+            >
+              Delete
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -1,5 +1,5 @@
-import { queryOptions } from '@tanstack/react-query';
-import { api } from './api';
+import { queryOptions, useMutation } from '@tanstack/react-query';
+import { api, queryClient } from './api';
 
 export const getMonitorQueryOptions = (id?: string) =>
   queryOptions({
@@ -27,4 +27,10 @@ export const getMonitorStatsQueryOptions = (id?: string) =>
     queryKey: ['monitor-stats', id],
     queryFn: () => api.fetchMonitorStats(id!),
     enabled: !!id,
+  });
+
+export const useDeleteConfig = () =>
+  useMutation({
+    mutationFn: api.deleteMonitor,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['monitors'] }),
   });
