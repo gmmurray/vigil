@@ -93,6 +93,7 @@ export function ChannelFormView() {
         onSubmit={handleSubmit}
         onCancel={() => navigate('/config/channels')}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
+        submitError={createMutation.error || updateMutation.error}
       />
     </div>
   );

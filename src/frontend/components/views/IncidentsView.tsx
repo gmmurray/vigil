@@ -7,13 +7,17 @@ import {
   getMonitorsQueryOptions,
 } from '../../lib/queries';
 import { cn, getDuration } from '../../lib/utils';
+import { TableEmptyRow } from '../ui/EmptyState';
 
 export function IncidentsView() {
   const [showHistory, setShowHistory] = useState(false);
 
-  const { data: incidentData, isLoading: loadingIncidents } = useQuery(
-    getIncidentsQueryOptions(!showHistory),
-  );
+  const {
+    data: incidentData,
+    isLoading: loadingIncidents,
+    isError,
+    refetch,
+  } = useQuery(getIncidentsQueryOptions(!showHistory));
 
   const { data: monitors } = useQuery({
     ...getMonitorsQueryOptions,
@@ -62,6 +66,17 @@ export function IncidentsView() {
         {loadingIncidents ? (
           <div className="p-8 text-center text-gold-dim font-mono animate-pulse">
             :: ACCESSING ::
+          </div>
+        ) : isError ? (
+          <div className="p-8 flex flex-col items-center justify-center font-mono text-retro-red gap-3">
+            <span>:: FAILED TO LOAD INCIDENTS ::</span>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="text-xs uppercase text-gold-dim hover:text-gold-primary transition-colors"
+            >
+              &gt; Retry
+            </button>
           </div>
         ) : (
           <table className="w-full min-w-max text-left border-collapse">
@@ -119,16 +134,11 @@ export function IncidentsView() {
               })}
 
               {incidents.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="p-12 text-center text-gold-dim font-mono"
-                  >
-                    {showHistory
-                      ? 'NO INCIDENT HISTORY FOUND'
-                      : 'ALL SYSTEMS OPERATIONAL'}
-                  </td>
-                </tr>
+                <TableEmptyRow colSpan={5}>
+                  {showHistory
+                    ? 'NO INCIDENT HISTORY FOUND'
+                    : 'ALL SYSTEMS OPERATIONAL'}
+                </TableEmptyRow>
               )}
             </tbody>
           </table>

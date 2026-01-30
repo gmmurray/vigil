@@ -98,6 +98,7 @@ export function MonitorFormView() {
         onSubmit={handleSubmit}
         onCancel={() => navigate('/config')}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
+        submitError={createMutation.error || updateMutation.error}
       />
     </div>
   );

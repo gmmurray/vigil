@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { getMonitorsQueryOptions } from '../../lib/queries';
 import { KPIGrid } from '../dashboard/KPIGrid';
 import { MonitorRow } from '../dashboard/MonitorRow';
+import { EmptyState } from '../ui/EmptyState';
 import { SearchInput } from '../ui/SearchInput';
 
 export function DashboardView() {
@@ -12,6 +13,7 @@ export function DashboardView() {
     data: monitors,
     isLoading,
     isError,
+    refetch,
   } = useQuery({
     ...getMonitorsQueryOptions,
     refetchInterval: 5000,
@@ -34,8 +36,15 @@ export function DashboardView() {
 
   if (isError || !monitors) {
     return (
-      <div className="panel h-32 flex items-center justify-center font-mono text-retro-red">
-        :: CONNECTION LOST ::
+      <div className="panel h-32 flex flex-col items-center justify-center font-mono text-retro-red gap-3">
+        <span>:: CONNECTION LOST ::</span>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="text-xs uppercase text-gold-dim hover:text-gold-primary transition-colors"
+        >
+          &gt; Retry
+        </button>
       </div>
     );
   }
@@ -64,9 +73,15 @@ export function DashboardView() {
 
         <div className="bg-panel border border-gold-faint">
           {filteredMonitors.length === 0 ? (
-            <div className="p-8 text-center text-gold-dim font-mono text-sm">
-              {search ? 'NO MATCHES' : 'NO MONITORS CONFIGURED'}
-            </div>
+            <EmptyState
+              title={search ? 'NO MATCHES' : 'NO MONITORS CONFIGURED'}
+              description={
+                search ? undefined : 'Add a monitor to start tracking uptime'
+              }
+              action={
+                search ? undefined : { label: 'Add Monitor', to: '/config/add' }
+              }
+            />
           ) : (
             filteredMonitors.map(monitor => (
               <MonitorRow key={monitor.id} monitor={monitor} />

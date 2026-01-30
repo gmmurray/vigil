@@ -5,11 +5,17 @@ import { api } from '../../lib/api';
 import { useDeleteConfig } from '../../lib/queries';
 import { cn } from '../../lib/utils';
 import type { Monitor } from '../../types';
+import { TableEmptyRow } from '../ui/EmptyState';
 import { SearchInput } from '../ui/SearchInput';
 
 export function ConfigListView() {
   const [search, setSearch] = useState('');
-  const { data: monitors, isLoading } = useQuery<Monitor[]>({
+  const {
+    data: monitors,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery<Monitor[]>({
     queryKey: ['monitors'],
     queryFn: api.fetchMonitors,
   });
@@ -20,6 +26,21 @@ export function ConfigListView() {
     return (
       <div className="panel animate-pulse text-gold-dim font-mono text-center p-8">
         :: ACCESSING ::
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="panel p-8 flex flex-col items-center justify-center font-mono text-retro-red gap-3">
+        <span>:: FAILED TO LOAD MONITORS ::</span>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="text-xs uppercase text-gold-dim hover:text-gold-primary transition-colors"
+        >
+          &gt; Retry
+        </button>
       </div>
     );
   }
@@ -109,11 +130,9 @@ export function ConfigListView() {
               </tr>
             ))}
             {filteredMonitors.length === 0 && (
-              <tr>
-                <td colSpan={3} className="p-8 text-center text-gold-dim">
-                  NO MATCHES
-                </td>
-              </tr>
+              <TableEmptyRow colSpan={3}>
+                {search ? 'NO MATCHES' : 'NO MONITORS CONFIGURED'}
+              </TableEmptyRow>
             )}
           </tbody>
         </table>

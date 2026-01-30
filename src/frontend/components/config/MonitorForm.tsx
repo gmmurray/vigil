@@ -5,13 +5,14 @@ import { useDeleteConfig } from '../../lib/queries';
 import { type MonitorFormData, monitorSchema } from '../../lib/schemas';
 import { cn } from '../../lib/utils';
 import type { Monitor } from '../../types';
-import { ErrorMsg, Input, Label } from '../ui/FormControls';
+import { ErrorMsg, FormAlert, Input, Label } from '../ui/FormControls';
 
 interface MonitorFormProps {
   defaultValues?: Monitor;
   onSubmit: (data: MonitorFormData) => void;
   onCancel: () => void;
   isSubmitting: boolean;
+  submitError?: Error | null;
 }
 
 export function MonitorForm({
@@ -19,6 +20,7 @@ export function MonitorForm({
   onSubmit,
   onCancel,
   isSubmitting,
+  submitError,
 }: MonitorFormProps) {
   const navigate = useNavigate();
   const deleteMutation = useDeleteConfig();
@@ -29,6 +31,7 @@ export function MonitorForm({
     formState: { errors },
   } = useForm({
     resolver: zodResolver(monitorSchema),
+    mode: 'onTouched',
     defaultValues: defaultValues
       ? ({
           ...defaultValues,
@@ -70,6 +73,8 @@ export function MonitorForm({
           </div>
         )}
       </div>
+
+      <FormAlert error={submitError} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>

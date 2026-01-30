@@ -6,7 +6,7 @@ import { useDeleteChannel } from '../../lib/queries';
 import { type ChannelFormData, channelSchema } from '../../lib/schemas';
 import { cn } from '../../lib/utils';
 import type { Channel } from '../../types';
-import { ErrorMsg, Input, Label } from '../ui/FormControls';
+import { ErrorMsg, FormAlert, Input, Label } from '../ui/FormControls';
 
 const SAMPLE_WEBHOOK_PAYLOAD = {
   monitor: {
@@ -29,6 +29,7 @@ interface ChannelFormProps {
   onSubmit: (data: ChannelFormData) => void;
   onCancel: () => void;
   isSubmitting: boolean;
+  submitError?: Error | null;
 }
 
 export function ChannelForm({
@@ -36,6 +37,7 @@ export function ChannelForm({
   onSubmit,
   onCancel,
   isSubmitting,
+  submitError,
 }: ChannelFormProps) {
   const navigate = useNavigate();
   const deleteMutation = useDeleteChannel();
@@ -47,6 +49,7 @@ export function ChannelForm({
     formState: { errors },
   } = useForm<ChannelFormData>({
     resolver: zodResolver(channelSchema),
+    mode: 'onTouched',
     defaultValues: defaultValues
       ? {
           type: defaultValues.type,
@@ -89,6 +92,8 @@ export function ChannelForm({
           </div>
         )}
       </div>
+
+      <FormAlert error={submitError} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>

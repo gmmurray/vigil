@@ -4,11 +4,17 @@ import { Link } from 'react-router-dom';
 import { getChannelsQueryOptions, useDeleteChannel } from '../../lib/queries';
 import { cn } from '../../lib/utils';
 import type { Channel } from '../../types';
+import { TableEmptyRow } from '../ui/EmptyState';
 import { SearchInput } from '../ui/SearchInput';
 
 export function ChannelListView() {
   const [search, setSearch] = useState('');
-  const { data: channels, isLoading } = useQuery(getChannelsQueryOptions());
+  const {
+    data: channels,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery(getChannelsQueryOptions());
 
   const deleteMutation = useDeleteChannel();
 
@@ -16,6 +22,21 @@ export function ChannelListView() {
     return (
       <div className="panel animate-pulse text-gold-dim font-mono text-center p-8">
         :: ACCESSING ::
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="panel p-8 flex flex-col items-center justify-center font-mono text-retro-red gap-3">
+        <span>:: FAILED TO LOAD CHANNELS ::</span>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="text-xs uppercase text-gold-dim hover:text-gold-primary transition-colors"
+        >
+          &gt; Retry
+        </button>
       </div>
     );
   }
@@ -73,11 +94,9 @@ export function ChannelListView() {
               />
             ))}
             {filteredChannels.length === 0 && (
-              <tr>
-                <td colSpan={3} className="p-8 text-center text-gold-dim">
-                  NO CHANNELS CONFIGURED
-                </td>
-              </tr>
+              <TableEmptyRow colSpan={3}>
+                {search ? 'NO MATCHES' : 'NO CHANNELS CONFIGURED'}
+              </TableEmptyRow>
             )}
           </tbody>
         </table>
