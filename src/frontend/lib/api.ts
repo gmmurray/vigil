@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import type { CheckResult, Incident, Monitor } from '../types';
+import type { Channel, CheckResult, Incident, Monitor } from '../types';
 
 const API_BASE = '/api/v1';
 
@@ -94,6 +94,47 @@ export const api = {
       },
     );
     if (!res.ok) throw new Error('Failed to check monitor');
+    return res.json();
+  },
+
+  // Channels
+  fetchChannels: async () => {
+    const res = await fetch(`${API_BASE}/channels`);
+    if (!res.ok) throw new Error('Failed to fetch channels');
+    return res.json() as Promise<Channel[]>;
+  },
+
+  fetchChannel: async (id: string) => {
+    const res = await fetch(`${API_BASE}/channels/${id}`);
+    if (!res.ok) throw new Error('Failed to fetch channel');
+    return res.json() as Promise<Channel>;
+  },
+
+  createChannel: async (data: Partial<Channel>) => {
+    const res = await fetch(`${API_BASE}/channels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to create channel');
+    return res.json();
+  },
+
+  updateChannel: async (id: string, data: Partial<Channel>) => {
+    const res = await fetch(`${API_BASE}/channels/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update channel');
+    return res.json();
+  },
+
+  deleteChannel: async (id: string) => {
+    const res = await fetch(`${API_BASE}/channels/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete channel');
     return res.json();
   },
 };

@@ -2,6 +2,8 @@ import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
 import BaseMeta from './components/BaseMeta';
 import { displayMonitorId } from './components/monitors/ids';
+import { ChannelFormView } from './components/views/ChannelFormView';
+import { ChannelListView } from './components/views/ChannelListView';
 import { ConfigListView } from './components/views/ConfigListView';
 import { DashboardView } from './components/views/DashboardView';
 import { IncidentsView } from './components/views/IncidentsView';
@@ -70,6 +72,36 @@ export const router = createBrowserRouter([
             element: <MonitorFormView />,
             handle: {
               title: pageTitle('Add Monitor'),
+              meta: {
+                noIndex: true,
+              },
+            } satisfies RouteHandle,
+          },
+          {
+            path: 'config/channels',
+            element: <ChannelListView />,
+            handle: {
+              title: pageTitle('Channels'),
+              meta: {
+                noIndex: true,
+              },
+            } satisfies RouteHandle,
+          },
+          {
+            path: 'config/channels/add',
+            element: <ChannelFormView />,
+            handle: {
+              title: pageTitle('Add Channel'),
+              meta: {
+                noIndex: true,
+              },
+            } satisfies RouteHandle,
+          },
+          {
+            path: 'config/channels/:id/edit',
+            element: <ChannelFormView />,
+            handle: {
+              title: pageTitle('Edit Channel'),
               meta: {
                 noIndex: true,
               },

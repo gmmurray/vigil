@@ -42,6 +42,22 @@ export interface Incident {
   cause: string | null;
 }
 
+export type ChannelType = 'WEBHOOK';
+
+export interface WebhookConfig {
+  url: string;
+}
+
+export type ChannelConfig = WebhookConfig;
+
+export interface Channel {
+  id: string;
+  type: ChannelType;
+  config: ChannelConfig;
+  enabled: number;
+  createdAt: string;
+}
+
 export interface RouteHandle {
   title?: string | ((params: Params<string>) => string);
   meta?: {

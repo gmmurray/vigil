@@ -14,6 +14,22 @@ app.get('/', async c => {
   return c.json(result);
 });
 
+app.get('/:id', async c => {
+  const id = c.req.param('id');
+  const db = createDb(c.env.DB);
+  const channel = await db
+    .select()
+    .from(notificationChannels)
+    .where(eq(notificationChannels.id, id))
+    .get();
+
+  if (!channel) {
+    return c.json({ error: 'Channel not found' }, 404);
+  }
+
+  return c.json(channel);
+});
+
 app.post('/', async c => {
   const db = createDb(c.env.DB);
   const body = (await c.req.json()) as Partial<NewChannel>;

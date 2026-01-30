@@ -40,7 +40,10 @@ export function ConfigListView() {
           placeholder="Search config..."
         />
 
-        <div>
+        <div className="flex gap-3">
+          <Link to="/config/channels" className="btn-gold no-underline">
+            Manage Channels
+          </Link>
           <Link to="/config/add" className="btn-gold active no-underline">
             + Add Monitor
           </Link>

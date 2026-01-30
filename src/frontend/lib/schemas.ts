@@ -37,3 +37,15 @@ export const monitorSchema = z.object({
 });
 
 export type MonitorFormData = z.infer<typeof monitorSchema>;
+
+export const webhookConfigSchema = z.object({
+  url: z.string().url('Must be a valid URL'),
+});
+
+export const channelSchema = z.object({
+  type: z.enum(['WEBHOOK']),
+  config: webhookConfigSchema,
+  enabled: z.boolean().optional(),
+});
+
+export type ChannelFormData = z.infer<typeof channelSchema>;

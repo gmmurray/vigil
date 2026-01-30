@@ -34,3 +34,23 @@ export const useDeleteConfig = () =>
     mutationFn: api.deleteMonitor,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['monitors'] }),
   });
+
+// Channels
+export const getChannelsQueryOptions = () =>
+  queryOptions({
+    queryKey: ['channels'],
+    queryFn: api.fetchChannels,
+  });
+
+export const getChannelQueryOptions = (id?: string) =>
+  queryOptions({
+    queryKey: ['channel', id],
+    queryFn: () => api.fetchChannel(id!),
+    enabled: !!id,
+  });
+
+export const useDeleteChannel = () =>
+  useMutation({
+    mutationFn: api.deleteChannel,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['channels'] }),
+  });
