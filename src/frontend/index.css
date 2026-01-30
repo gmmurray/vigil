@@ -56,7 +56,7 @@
 @layer components {
   /* Squared Button Style */
   .btn-gold {
-    @apply border border-gold-faint text-gold-dim px-4 py-2 text-sm uppercase font-mono transition-all hover:border-gold-primary hover:text-gold-primary hover:bg-active bg-transparent;
+    @apply border border-gold-faint text-gold-dim px-4 py-2 text-sm uppercase font-mono transition-all hover:border-gold-primary hover:text-gold-primary hover:bg-active bg-transparent cursor-pointer;
   }
 
   .btn-gold.active {
