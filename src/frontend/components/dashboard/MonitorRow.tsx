@@ -1,8 +1,17 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils';
 import type { Monitor } from '../../types';
 
 export function MonitorRow({ monitor }: { monitor: Monitor }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!monitor.enabled) return;
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [monitor.enabled]);
+
   const isUp = monitor.status === 'UP' || monitor.status === 'RECOVERING';
   const isDown = monitor.status === 'DOWN';
   const isWarn = monitor.status === 'DEGRADED';
@@ -21,6 +30,18 @@ export function MonitorRow({ monitor }: { monitor: Monitor }) {
   const latency = latestCheck?.responseTimeMs ?? null;
   const lastCode = latestCheck?.statusCode ?? '---';
 
+  // Calculate time info
+  const lastCheckedAt = latestCheck?.checkedAt
+    ? new Date(latestCheck.checkedAt)
+    : null;
+
+  // Determine if check is due (for pulse effect)
+  const secondsSinceCheck = lastCheckedAt
+    ? Math.floor((now - lastCheckedAt.getTime()) / 1000)
+    : 0;
+  const isChecking =
+    monitor.enabled && secondsSinceCheck >= monitor.intervalSeconds;
+
   return (
     <Link
       to={`/monitors/${monitor.id}`}
@@ -35,6 +56,7 @@ export function MonitorRow({ monitor }: { monitor: Monitor }) {
               isDown && 'bg-retro-red shadow-retro-red',
               isWarn && 'bg-retro-warn shadow-retro-warn',
               !monitor.enabled && 'bg-retro-off shadow-none',
+              isChecking && 'animate-pulse',
             )}
           />
         </div>
@@ -97,8 +119,38 @@ export function MonitorRow({ monitor }: { monitor: Monitor }) {
           <span className={cn(latency && latency > 1000 && 'text-retro-warn')}>
             {latency !== null ? `${latency}ms` : '---'}
           </span>
+          <span className="text-gold-faint">|</span>
+          <TimeInfo
+            secondsAgo={secondsSinceCheck}
+            intervalSeconds={monitor.intervalSeconds}
+            hasData={!!lastCheckedAt}
+          />
         </div>
       </div>
     </Link>
   );
+}
+
+function TimeInfo({
+  secondsAgo,
+  intervalSeconds,
+  hasData,
+}: {
+  secondsAgo: number;
+  intervalSeconds: number;
+  hasData: boolean;
+}) {
+  if (!hasData) return <span>--</span>;
+
+  const agoText =
+    secondsAgo < 60
+      ? `${secondsAgo}s ago`
+      : `${Math.floor(secondsAgo / 60)}m ago`;
+
+  const intervalText =
+    intervalSeconds < 60
+      ? `every ${intervalSeconds}s`
+      : `every ${Math.floor(intervalSeconds / 60)}m`;
+
+  return <span title={`Checks ${intervalText}`}>{agoText}</span>;
 }

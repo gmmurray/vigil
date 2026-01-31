@@ -364,4 +364,62 @@ app.delete('/:id', async c => {
   return c.json({ success: true });
 });
 
+app.patch('/bulk', async c => {
+  const db = createDb(c.env.DB);
+  const body = await c.req.json<{
+    ids: string[] | null;
+    update: { enabled?: number };
+  }>();
+
+  if (!body.update || Object.keys(body.update).length === 0) {
+    return c.json({ error: 'No update fields provided' }, 400);
+  }
+
+  // Build update data
+  const updateData: { enabled?: number; updatedAt: string } = {
+    updatedAt: new Date().toISOString(),
+  };
+  if (body.update.enabled !== undefined) {
+    updateData.enabled = body.update.enabled;
+  }
+
+  // Get affected monitor IDs
+  let affectedIds: string[];
+  if (body.ids && body.ids.length > 0) {
+    affectedIds = body.ids;
+    await db
+      .update(monitors)
+      .set(updateData)
+      .where(
+        sql`id IN (${sql.join(
+          body.ids.map(id => sql`${id}`),
+          sql`, `,
+        )})`,
+      )
+      .run();
+  } else {
+    // Update all
+    const allMonitors = await db
+      .select({ id: monitors.id })
+      .from(monitors)
+      .all();
+    affectedIds = allMonitors.map(m => m.id);
+    await db.update(monitors).set(updateData).run();
+  }
+
+  // Refresh each affected Durable Object
+  await Promise.allSettled(
+    affectedIds.map(async id => {
+      const doId = c.env.MONITOR.idFromName(id);
+      const stub = c.env.MONITOR.get(doId);
+      await stub.fetch('http://do/init', {
+        method: 'POST',
+        body: JSON.stringify({ monitorId: id }),
+      });
+    }),
+  );
+
+  return c.json({ success: true, affected: affectedIds.length });
+});
+
 export default app;

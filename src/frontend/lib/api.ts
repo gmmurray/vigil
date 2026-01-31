@@ -50,6 +50,19 @@ export const api = {
     return res.json();
   },
 
+  bulkUpdateMonitors: async (
+    ids: string[] | null,
+    update: { enabled?: number },
+  ) => {
+    const res = await fetch(`${API_BASE}/monitors/bulk`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids, update }),
+    });
+    if (!res.ok) throw new Error('Failed to bulk update monitors');
+    return res.json() as Promise<{ success: boolean; affected: number }>;
+  },
+
   fetchMonitor: async (id: string) => {
     const res = await fetch(`${API_BASE}/monitors/${id}`);
     if (!res.ok) throw new Error('Failed to fetch monitor');
