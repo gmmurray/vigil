@@ -1,7 +1,4 @@
-import {
-  isStatusCodeValid,
-  parseExpectedStatusCodes,
-} from './state-machine';
+import { isStatusCodeValid, parseExpectedStatusCodes } from './state-machine';
 
 export interface CheckEndpointParams {
   url: string;

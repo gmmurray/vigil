@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { checkEndpoint, type CheckEndpointParams } from './check-endpoint';
+import { type CheckEndpointParams, checkEndpoint } from './check-endpoint';
 
 describe('checkEndpoint', () => {
   const defaultParams: CheckEndpointParams = {

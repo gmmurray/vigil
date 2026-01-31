@@ -64,7 +64,9 @@ function createMockDurableObjectStub(
 // Helper to create mock environment
 function createMockEnv(stubResponse?: Response) {
   const mockDb = createMockDb();
-  vi.mocked(createDb).mockReturnValue(mockDb as unknown as ReturnType<typeof createDb>);
+  vi.mocked(createDb).mockReturnValue(
+    mockDb as unknown as ReturnType<typeof createDb>,
+  );
 
   const mockStub = createMockDurableObjectStub(stubResponse);
 
@@ -112,7 +114,8 @@ const sampleCheckResult = {
 function setupSelectMock(mockDb: MockDb, returnValues: unknown[]) {
   let callIndex = 0;
   mockDb.select = vi.fn(() => {
-    const value = returnValues[callIndex] ?? returnValues[returnValues.length - 1];
+    const value =
+      returnValues[callIndex] ?? returnValues[returnValues.length - 1];
     callIndex++;
     return value as ReturnType<MockDb['select']>;
   });
@@ -475,7 +478,10 @@ describe('monitors routes', () => {
         env,
       );
 
-      const data = (await res.json()) as { success: boolean; statusCode: number };
+      const data = (await res.json()) as {
+        success: boolean;
+        statusCode: number;
+      };
 
       expect(data.success).toBe(true);
       expect(data.statusCode).toBe(201);
@@ -519,7 +525,9 @@ describe('monitors routes', () => {
 
       const abortError = new Error('Aborted');
       abortError.name = 'AbortError';
-      const mockFetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(abortError);
+      const mockFetch = vi
+        .spyOn(globalThis, 'fetch')
+        .mockRejectedValue(abortError);
 
       const res = await app.request(
         '/test',
@@ -575,7 +583,9 @@ describe('monitors routes', () => {
     it('returns monitor when found', async () => {
       const { env, mockDb } = createMockEnv();
 
-      mockDb.select = vi.fn().mockReturnValue(createSelectChain({ get: sampleMonitor }));
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(createSelectChain({ get: sampleMonitor }));
 
       const res = await app.request('/mon_123', {}, env);
       const data = (await res.json()) as { id: string; name: string };
@@ -619,9 +629,12 @@ describe('monitors routes', () => {
 
       await app.request('/mon_123/check?force=true', { method: 'POST' }, env);
 
-      expect(mockStub.fetch).toHaveBeenCalledWith('http://do/check?force=true', {
-        method: 'POST',
-      });
+      expect(mockStub.fetch).toHaveBeenCalledWith(
+        'http://do/check?force=true',
+        {
+          method: 'POST',
+        },
+      );
     });
 
     it('returns 500 when Durable Object check fails', async () => {
@@ -709,8 +722,14 @@ describe('monitors routes', () => {
         }),
       });
 
-      const res = await app.request('/mon_123/checks?limit=50&offset=100', {}, env);
-      const data = (await res.json()) as { meta: { limit: number; offset: number } };
+      const res = await app.request(
+        '/mon_123/checks?limit=50&offset=100',
+        {},
+        env,
+      );
+      const data = (await res.json()) as {
+        meta: { limit: number; offset: number };
+      };
 
       expect(data.meta.limit).toBe(50);
       expect(data.meta.offset).toBe(100);
@@ -912,7 +931,9 @@ describe('monitors routes', () => {
     it('updates monitor fields', async () => {
       const { env, mockDb, mockStub } = createMockEnv();
 
-      mockDb.select = vi.fn().mockReturnValue(createSelectChain({ get: sampleMonitor }));
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(createSelectChain({ get: sampleMonitor }));
 
       mockDb.update = vi.fn().mockReturnValue({
         set: vi.fn().mockReturnValue({
@@ -972,9 +993,13 @@ describe('monitors routes', () => {
     it('allows setting headers to null', async () => {
       const { env, mockDb } = createMockEnv();
 
-      mockDb.select = vi.fn().mockReturnValue(
-        createSelectChain({ get: { ...sampleMonitor, headers: { foo: 'bar' } } }),
-      );
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(
+          createSelectChain({
+            get: { ...sampleMonitor, headers: { foo: 'bar' } },
+          }),
+        );
 
       mockDb.update = vi.fn().mockReturnValue({
         set: vi.fn().mockReturnValue({
@@ -1003,7 +1028,9 @@ describe('monitors routes', () => {
     it('updates enabled status', async () => {
       const { env, mockDb } = createMockEnv();
 
-      mockDb.select = vi.fn().mockReturnValue(createSelectChain({ get: sampleMonitor }));
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(createSelectChain({ get: sampleMonitor }));
 
       mockDb.update = vi.fn().mockReturnValue({
         set: vi.fn().mockReturnValue({

@@ -39,7 +39,9 @@ function createMockDb() {
 // Helper to create mock environment
 function createMockEnv() {
   const mockDb = createMockDb();
-  vi.mocked(createDb).mockReturnValue(mockDb as unknown as ReturnType<typeof createDb>);
+  vi.mocked(createDb).mockReturnValue(
+    mockDb as unknown as ReturnType<typeof createDb>,
+  );
 
   return {
     env: {
@@ -417,7 +419,9 @@ describe('notifications routes', () => {
       });
 
       const res = await app.request('/?limit=25&offset=50', {}, env);
-      const data = (await res.json()) as { meta: { limit: number; offset: number } };
+      const data = (await res.json()) as {
+        meta: { limit: number; offset: number };
+      };
 
       expect(res.status).toBe(200);
       expect(data.meta.limit).toBe(25);
@@ -448,7 +452,10 @@ describe('notifications routes', () => {
                     offset: vi.fn().mockReturnValue({
                       all: vi
                         .fn()
-                        .mockResolvedValue([newerNotification, olderNotification]),
+                        .mockResolvedValue([
+                          newerNotification,
+                          olderNotification,
+                        ]),
                     }),
                   }),
                 }),
@@ -459,7 +466,9 @@ describe('notifications routes', () => {
       });
 
       const res = await app.request('/', {}, env);
-      const data = (await res.json()) as { data: Array<{ id: string; createdAt: string }> };
+      const data = (await res.json()) as {
+        data: Array<{ id: string; createdAt: string }>;
+      };
 
       expect(res.status).toBe(200);
       expect(data.data).toHaveLength(2);
@@ -471,7 +480,11 @@ describe('notifications routes', () => {
       const { env, mockDb } = createMockEnv();
 
       const downNotification = { ...sampleNotification, event: 'DOWN' };
-      const upNotification = { ...sampleNotification, id: 'notif_up', event: 'UP' };
+      const upNotification = {
+        ...sampleNotification,
+        id: 'notif_up',
+        event: 'UP',
+      };
 
       mockDb.select = vi.fn().mockReturnValue({
         from: vi.fn().mockReturnValue({
@@ -481,7 +494,9 @@ describe('notifications routes', () => {
                 orderBy: vi.fn().mockReturnValue({
                   limit: vi.fn().mockReturnValue({
                     offset: vi.fn().mockReturnValue({
-                      all: vi.fn().mockResolvedValue([downNotification, upNotification]),
+                      all: vi
+                        .fn()
+                        .mockResolvedValue([downNotification, upNotification]),
                     }),
                   }),
                 }),

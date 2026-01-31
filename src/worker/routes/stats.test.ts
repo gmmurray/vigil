@@ -42,7 +42,9 @@ function createMockDb() {
 // Helper to create mock environment
 function createMockEnv() {
   const mockDb = createMockDb();
-  vi.mocked(createDb).mockReturnValue(mockDb as unknown as ReturnType<typeof createDb>);
+  vi.mocked(createDb).mockReturnValue(
+    mockDb as unknown as ReturnType<typeof createDb>,
+  );
 
   return {
     env: {
@@ -105,7 +107,10 @@ describe('stats routes', () => {
       });
 
       const res = await app.request('/global', {}, env);
-      const data = (await res.json()) as { uptime30d: number; avgLatency: number };
+      const data = (await res.json()) as {
+        uptime30d: number;
+        avgLatency: number;
+      };
 
       expect(res.status).toBe(200);
       // With 0 monitors, division by zero handling kicks in
@@ -156,7 +161,10 @@ describe('stats routes', () => {
       });
 
       const res = await app.request('/global', {}, env);
-      const data = (await res.json()) as { uptime30d: number; avgLatency: number };
+      const data = (await res.json()) as {
+        uptime30d: number;
+        avgLatency: number;
+      };
 
       expect(res.status).toBe(200);
       expect(data.uptime30d).toBe(100);
@@ -218,7 +226,10 @@ describe('stats routes', () => {
       });
 
       const res = await app.request('/global', {}, env);
-      const data = (await res.json()) as { uptime30d: number; avgLatency: number };
+      const data = (await res.json()) as {
+        uptime30d: number;
+        avgLatency: number;
+      };
 
       expect(res.status).toBe(200);
       // 1 hour down out of 30 days = ~99.86% uptime
@@ -389,7 +400,8 @@ describe('stats routes', () => {
 
       expect(res.status).toBe(200);
       // Check it's a number with at most 2 decimal places
-      const decimalPlaces = (data.uptime30d.toString().split('.')[1] || '').length;
+      const decimalPlaces = (data.uptime30d.toString().split('.')[1] || '')
+        .length;
       expect(decimalPlaces).toBeLessThanOrEqual(2);
     });
 
@@ -453,7 +465,10 @@ describe('stats routes', () => {
       });
 
       const res = await app.request('/global', {}, env);
-      const data = (await res.json()) as { uptime30d: number; avgLatency: number };
+      const data = (await res.json()) as {
+        uptime30d: number;
+        avgLatency: number;
+      };
 
       expect(res.status).toBe(200);
       // With 3 monitors over 30 days, 2 hours of total downtime is minimal

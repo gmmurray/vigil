@@ -47,7 +47,9 @@ function createMockDb() {
 // Helper to create mock environment
 function createMockEnv() {
   const mockDb = createMockDb();
-  vi.mocked(createDb).mockReturnValue(mockDb as unknown as ReturnType<typeof createDb>);
+  vi.mocked(createDb).mockReturnValue(
+    mockDb as unknown as ReturnType<typeof createDb>,
+  );
 
   return {
     env: {
@@ -99,9 +101,9 @@ describe('channels routes', () => {
     it('returns all channels', async () => {
       const { env, mockDb } = createMockEnv();
 
-      mockDb.select = vi.fn().mockReturnValue(
-        createSelectChain({ all: [sampleChannel] }),
-      );
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(createSelectChain({ all: [sampleChannel] }));
 
       const res = await app.request('/', {}, env);
       const data = (await res.json()) as Array<{ id: string; type: string }>;
@@ -120,7 +122,9 @@ describe('channels routes', () => {
         { ...sampleChannel, id: 'ch_456', type: 'SLACK' },
       ];
 
-      mockDb.select = vi.fn().mockReturnValue(createSelectChain({ all: channels }));
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(createSelectChain({ all: channels }));
 
       const res = await app.request('/', {}, env);
       const data = (await res.json()) as unknown[];
@@ -134,12 +138,16 @@ describe('channels routes', () => {
     it('returns channel when found', async () => {
       const { env, mockDb } = createMockEnv();
 
-      mockDb.select = vi.fn().mockReturnValue(
-        createSelectChain({ get: sampleChannel }),
-      );
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(createSelectChain({ get: sampleChannel }));
 
       const res = await app.request('/ch_123', {}, env);
-      const data = (await res.json()) as { id: string; type: string; config: unknown };
+      const data = (await res.json()) as {
+        id: string;
+        type: string;
+        config: unknown;
+      };
 
       expect(res.status).toBe(200);
       expect(data.id).toBe('ch_123');
@@ -191,7 +199,9 @@ describe('channels routes', () => {
       expect(res.status).toBe(201);
       expect(data.id).toBe('TEST_CHANNEL_123');
       expect(data.type).toBe('WEBHOOK');
-      expect(data.config).toEqual({ url: 'https://hooks.slack.com/services/xxx' });
+      expect(data.config).toEqual({
+        url: 'https://hooks.slack.com/services/xxx',
+      });
       expect(data.enabled).toBe(1); // default
     });
 
@@ -285,9 +295,9 @@ describe('channels routes', () => {
     it('updates channel type', async () => {
       const { env, mockDb } = createMockEnv();
 
-      mockDb.select = vi.fn().mockReturnValue(
-        createSelectChain({ get: sampleChannel }),
-      );
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(createSelectChain({ get: sampleChannel }));
 
       mockDb.update = vi.fn().mockReturnValue({
         set: vi.fn().mockReturnValue({
@@ -317,9 +327,9 @@ describe('channels routes', () => {
     it('updates channel config', async () => {
       const { env, mockDb } = createMockEnv();
 
-      mockDb.select = vi.fn().mockReturnValue(
-        createSelectChain({ get: sampleChannel }),
-      );
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(createSelectChain({ get: sampleChannel }));
 
       mockDb.update = vi.fn().mockReturnValue({
         set: vi.fn().mockReturnValue({
@@ -351,9 +361,9 @@ describe('channels routes', () => {
     it('updates channel enabled status', async () => {
       const { env, mockDb } = createMockEnv();
 
-      mockDb.select = vi.fn().mockReturnValue(
-        createSelectChain({ get: sampleChannel }),
-      );
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(createSelectChain({ get: sampleChannel }));
 
       mockDb.update = vi.fn().mockReturnValue({
         set: vi.fn().mockReturnValue({
@@ -383,9 +393,9 @@ describe('channels routes', () => {
     it('updates multiple fields at once', async () => {
       const { env, mockDb } = createMockEnv();
 
-      mockDb.select = vi.fn().mockReturnValue(
-        createSelectChain({ get: sampleChannel }),
-      );
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(createSelectChain({ get: sampleChannel }));
 
       const setMock = vi.fn().mockReturnValue({
         where: vi.fn().mockReturnValue({
@@ -419,7 +429,9 @@ describe('channels routes', () => {
       expect(res.status).toBe(200);
       expect(data.success).toBe(true);
       expect(data.type).toBe('DISCORD');
-      expect(data.config).toEqual({ webhookUrl: 'https://discord.com/api/webhooks/xxx' });
+      expect(data.config).toEqual({
+        webhookUrl: 'https://discord.com/api/webhooks/xxx',
+      });
       expect(data.enabled).toBe(0);
     });
 
@@ -446,9 +458,9 @@ describe('channels routes', () => {
     it('succeeds with empty update (no fields to update)', async () => {
       const { env, mockDb } = createMockEnv();
 
-      mockDb.select = vi.fn().mockReturnValue(
-        createSelectChain({ get: sampleChannel }),
-      );
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(createSelectChain({ get: sampleChannel }));
 
       const res = await app.request(
         '/ch_123',
