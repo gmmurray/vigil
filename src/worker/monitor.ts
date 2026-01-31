@@ -2,12 +2,8 @@ import { DurableObject } from 'cloudflare:workers';
 import { and, desc, eq, isNull } from 'drizzle-orm';
 import { ulid } from 'ulid';
 import { createDb } from './db';
-import {
-  calculateNextState,
-  isStatusCodeValid,
-  parseExpectedStatusCodes,
-  shouldNotify,
-} from './lib/state-machine';
+import { checkEndpoint } from './lib/check-endpoint';
+import { calculateNextState, shouldNotify } from './lib/state-machine';
 import { deliverWebhookWithRetry } from './lib/webhook';
 import {
   checkResults,
@@ -391,51 +387,21 @@ export class MonitorObject extends DurableObject {
   async check(): Promise<CheckResult> {
     if (!this.config) throw new Error('Config missing');
 
-    const start = Date.now();
-    let status: 'UP' | 'DOWN' = 'DOWN';
-    let statusCode: number | null = null;
-    let error: string | null = null;
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(
-        () => controller.abort(),
-        this.config.timeoutMs,
-      );
-
-      const resp = await fetch(this.config.url, {
-        method: this.config.method,
-        headers: this.config.headers || undefined,
-        body: this.config.body || undefined,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      statusCode = resp.status;
-
-      const validCodes = parseExpectedStatusCodes(this.config.expectedStatus);
-
-      if (isStatusCodeValid(statusCode, validCodes)) {
-        status = 'UP';
-      } else {
-        error = `Unexpected status code: ${statusCode}`;
-      }
-    } catch (e: unknown) {
-      if (e instanceof Error) {
-        error = e.name === 'AbortError' ? 'Timeout' : e.message;
-      } else {
-        error = 'Network Error';
-      }
-    }
-
-    const responseTimeMs = Date.now() - start;
+    const result = await checkEndpoint({
+      url: this.config.url,
+      method: this.config.method,
+      headers: this.config.headers,
+      body: this.config.body,
+      timeoutMs: this.config.timeoutMs,
+      expectedStatus: this.config.expectedStatus,
+    });
 
     return {
       monitorId: this.config.id,
-      status,
-      responseTimeMs,
-      statusCode,
-      error,
+      status: result.status,
+      responseTimeMs: result.responseTimeMs,
+      statusCode: result.statusCode,
+      error: result.error,
       checkedAt: new Date().toISOString(),
       id: ulid(),
     };
