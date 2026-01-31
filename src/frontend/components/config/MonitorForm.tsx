@@ -173,43 +173,41 @@ export function MonitorForm({
   );
 }
 
-interface UrlTestButtonProps {
+type TestResult = {
+  success: boolean;
+  statusCode: number | null;
+  responseTime: number;
+  error: string | null;
+};
+
+function UrlTestButton(props: {
   url: string;
   method: string;
   timeoutMs: number;
   expectedStatus: string;
-}
-
-function UrlTestButton({
-  url,
-  method,
-  timeoutMs,
-  expectedStatus,
-}: UrlTestButtonProps) {
-  const [testResult, setTestResult] = useState<{
-    success: boolean;
-    statusCode: number | null;
-    responseTime: number;
-    error: string | null;
-  } | null>(null);
+}) {
+  const [result, setResult] = useState<TestResult | null>(null);
   const [isTesting, setIsTesting] = useState(false);
 
+  const isDisabled = !props.url || isTesting;
+
   const handleTest = async () => {
-    if (!url || isTesting) return;
+    if (isDisabled) return;
 
     setIsTesting(true);
-    setTestResult(null);
+    setResult(null);
 
     try {
-      const result = await api.testMonitorUrl({
-        url,
-        method,
-        timeoutMs: Number(timeoutMs) || 5000,
-        expectedStatus: expectedStatus || '200',
-      });
-      setTestResult(result);
+      setResult(
+        await api.testMonitorUrl({
+          url: props.url,
+          method: props.method,
+          timeoutMs: Number(props.timeoutMs) || 5000,
+          expectedStatus: props.expectedStatus || '200',
+        }),
+      );
     } catch {
-      setTestResult({
+      setResult({
         success: false,
         statusCode: null,
         responseTime: 0,
@@ -220,36 +218,34 @@ function UrlTestButton({
     }
   };
 
-  const getButtonContent = () => {
-    if (isTesting) return 'Testing...';
-    if (testResult) {
-      return testResult.success
-        ? `✓ ${testResult.statusCode} · ${testResult.responseTime}ms`
-        : `✗ ${testResult.error}`;
-    }
-    return 'Test';
-  };
+  const label = isTesting
+    ? 'Testing...'
+    : result
+      ? result.success
+        ? `✓ ${result.statusCode} · ${result.responseTime}ms`
+        : `✗ ${result.error}`
+      : 'Test';
 
-  const getButtonClass = () => {
-    if (!testResult) return 'btn-gold';
-    return testResult.success
+  const style = !result
+    ? 'btn-gold'
+    : result.success
       ? 'border border-retro-green bg-retro-green/10 text-retro-green hover:bg-retro-green/20'
       : 'border border-retro-red bg-retro-red/10 text-retro-red hover:bg-retro-red/20';
-  };
 
   return (
     <button
       type="button"
       onClick={handleTest}
-      disabled={!url || isTesting}
-      title={testResult ? 'Click to test again' : 'Test endpoint'}
+      disabled={isDisabled}
+      title={result ? 'Click to test again' : 'Test endpoint'}
       className={cn(
-        'px-3 py-2 text-xs font-mono whitespace-nowrap transition-colors shrink-0 cursor-pointer',
-        getButtonClass(),
-        (!url || isTesting) && 'opacity-50 cursor-not-allowed',
+        'px-3 py-2 text-xs font-mono whitespace-nowrap transition-colors shrink-0',
+        style,
+        isDisabled && 'opacity-50 cursor-not-allowed',
+        !isDisabled && 'cursor-pointer',
       )}
     >
-      {getButtonContent()}
+      {label}
     </button>
   );
 }
