@@ -91,16 +91,14 @@ export function MonitorForm({
           <ErrorMsg>{errors.name?.message}</ErrorMsg>
         </div>
 
-        <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
-          <div>
-            <Label>Endpoint URL</Label>
+        <div>
+          <Label>Endpoint URL</Label>
+          <div className="flex gap-2">
             <Input
               {...register('url')}
               placeholder="https://api.example.com/health"
+              className="flex-1"
             />
-            <ErrorMsg>{errors.url?.message}</ErrorMsg>
-          </div>
-          <div className="pt-6">
             <UrlTestButton
               url={watchedUrl}
               method={watchedMethod}
@@ -108,6 +106,7 @@ export function MonitorForm({
               expectedStatus={watchedExpectedStatus}
             />
           </div>
+          <ErrorMsg>{errors.url?.message}</ErrorMsg>
         </div>
       </div>
 
@@ -196,7 +195,7 @@ function UrlTestButton({
   const [isTesting, setIsTesting] = useState(false);
 
   const handleTest = async () => {
-    if (!url) return;
+    if (!url || isTesting) return;
 
     setIsTesting(true);
     setTestResult(null);
@@ -214,44 +213,43 @@ function UrlTestButton({
         success: false,
         statusCode: null,
         responseTime: 0,
-        error: 'Failed to run test',
+        error: 'Failed',
       });
     } finally {
       setIsTesting(false);
     }
   };
 
+  const getButtonContent = () => {
+    if (isTesting) return 'Testing...';
+    if (testResult) {
+      return testResult.success
+        ? `✓ ${testResult.statusCode} · ${testResult.responseTime}ms`
+        : `✗ ${testResult.error}`;
+    }
+    return 'Test';
+  };
+
+  const getButtonClass = () => {
+    if (!testResult) return 'btn-gold';
+    return testResult.success
+      ? 'border border-retro-green bg-retro-green/10 text-retro-green hover:bg-retro-green/20'
+      : 'border border-retro-red bg-retro-red/10 text-retro-red hover:bg-retro-red/20';
+  };
+
   return (
-    <>
-      <button
-        type="button"
-        onClick={handleTest}
-        disabled={!url || isTesting}
-        className={cn(
-          'btn-gold whitespace-nowrap',
-          (!url || isTesting) && 'opacity-50 cursor-not-allowed',
-        )}
-      >
-        {isTesting ? 'Testing...' : 'Test URL'}
-      </button>
-      {testResult && (
-        <div
-          className={cn(
-            'col-span-full px-3 py-2 text-xs font-mono border',
-            testResult.success
-              ? 'border-retro-green bg-retro-green/10 text-retro-green'
-              : 'border-retro-red bg-retro-red/10 text-retro-red',
-          )}
-        >
-          {testResult.success ? (
-            <span>
-              OK: {testResult.statusCode} in {testResult.responseTime}ms
-            </span>
-          ) : (
-            <span>FAILED: {testResult.error}</span>
-          )}
-        </div>
+    <button
+      type="button"
+      onClick={handleTest}
+      disabled={!url || isTesting}
+      title={testResult ? 'Click to test again' : 'Test endpoint'}
+      className={cn(
+        'px-3 py-2 text-xs font-mono whitespace-nowrap transition-colors shrink-0 cursor-pointer',
+        getButtonClass(),
+        (!url || isTesting) && 'opacity-50 cursor-not-allowed',
       )}
-    </>
+    >
+      {getButtonContent()}
+    </button>
   );
 }
