@@ -10,6 +10,8 @@ import { IncidentsView } from './components/views/IncidentsView';
 import { LandingView } from './components/views/LandingView';
 import { MonitorDetailView } from './components/views/MonitorDetailView';
 import { MonitorFormView } from './components/views/MonitorFormView';
+import { NotFoundView } from './components/views/NotFoundView';
+import { NotificationsView } from './components/views/NotificationsView';
 import type { RouteHandle } from './types';
 
 export const router = createBrowserRouter([
@@ -78,7 +80,27 @@ export const router = createBrowserRouter([
             } satisfies RouteHandle,
           },
           {
-            path: 'config/channels',
+            path: 'incidents',
+            element: <IncidentsView />,
+            handle: {
+              title: pageTitle('Incidents'),
+              meta: {
+                noIndex: true,
+              },
+            } satisfies RouteHandle,
+          },
+          {
+            path: 'notifications',
+            element: <NotificationsView />,
+            handle: {
+              title: pageTitle('Notifications'),
+              meta: {
+                noIndex: true,
+              },
+            } satisfies RouteHandle,
+          },
+          {
+            path: 'notifications/channels',
             element: <ChannelListView />,
             handle: {
               title: pageTitle('Channels'),
@@ -88,7 +110,7 @@ export const router = createBrowserRouter([
             } satisfies RouteHandle,
           },
           {
-            path: 'config/channels/add',
+            path: 'notifications/channels/add',
             element: <ChannelFormView />,
             handle: {
               title: pageTitle('Add Channel'),
@@ -98,7 +120,7 @@ export const router = createBrowserRouter([
             } satisfies RouteHandle,
           },
           {
-            path: 'config/channels/:id/edit',
+            path: 'notifications/channels/:id/edit',
             element: <ChannelFormView />,
             handle: {
               title: pageTitle('Edit Channel'),
@@ -108,10 +130,10 @@ export const router = createBrowserRouter([
             } satisfies RouteHandle,
           },
           {
-            path: 'incidents',
-            element: <IncidentsView />,
+            path: '*',
+            element: <NotFoundView />,
             handle: {
-              title: pageTitle('Incidents'),
+              title: pageTitle('Not Found'),
               meta: {
                 noIndex: true,
               },

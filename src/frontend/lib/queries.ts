@@ -66,3 +66,18 @@ export const getIncidentsQueryOptions = (activeOnly: boolean) =>
     queryFn: () => api.fetchIncidents({ active: activeOnly, limit: 100 }),
     refetchInterval: 10000,
   });
+
+// Notification Logs
+export const getNotificationLogsQueryOptions = (filter?: {
+  channelId?: string;
+  success?: boolean;
+}) =>
+  queryOptions({
+    queryKey: ['notification-logs', filter],
+    queryFn: () =>
+      api.fetchNotificationLogs({
+        channelId: filter?.channelId,
+        success: filter?.success,
+        limit: 100,
+      }),
+  });

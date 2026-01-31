@@ -4,6 +4,7 @@ import type {
   incidents,
   monitors,
   notificationChannels,
+  notificationLogs,
 } from './schema';
 
 // Type-safe enums for SQLite text fields
@@ -14,6 +15,7 @@ export type Monitor = InferSelectModel<typeof monitors>;
 export type CheckResult = InferSelectModel<typeof checkResults>;
 export type Incident = InferSelectModel<typeof incidents>;
 export type Channel = InferInsertModel<typeof notificationChannels>;
+export type NotificationLog = InferSelectModel<typeof notificationLogs>;
 
 // Insert models for API requests
 export type NewMonitor = InferInsertModel<typeof monitors>;

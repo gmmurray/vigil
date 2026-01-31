@@ -58,6 +58,18 @@ export interface Channel {
   createdAt: string;
 }
 
+export interface NotificationLog {
+  id: string;
+  channelId: string;
+  monitorId: string;
+  event: string;
+  success: number;
+  error: string | null;
+  createdAt: string;
+  monitorName: string | null;
+  channelType: string | null;
+}
+
 export interface RouteHandle {
   title?: string | ((params: Params<string>) => string);
   meta?: {

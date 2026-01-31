@@ -59,3 +59,25 @@ export const notificationChannels = sqliteTable('notification_channels', {
   enabled: integer('enabled').notNull().default(1),
   createdAt: text('created_at').notNull().default(sql`(current_timestamp)`),
 });
+
+export const notificationLogs = sqliteTable(
+  'notification_logs',
+  {
+    id: text('id').primaryKey(),
+    channelId: text('channel_id')
+      .notNull()
+      .references(() => notificationChannels.id, { onDelete: 'cascade' }),
+    monitorId: text('monitor_id')
+      .notNull()
+      .references(() => monitors.id, { onDelete: 'cascade' }),
+    event: text('event').notNull(), // UP, DOWN
+    success: integer('success').notNull(), // Boolean: 0 or 1
+    error: text('error'),
+    createdAt: text('created_at').notNull().default(sql`(current_timestamp)`),
+  },
+  table => ({
+    channelIdIdx: index('notification_logs_channel_id_idx').on(table.channelId),
+    monitorIdIdx: index('notification_logs_monitor_id_idx').on(table.monitorId),
+    createdAtIdx: index('notification_logs_created_at_idx').on(table.createdAt),
+  }),
+);

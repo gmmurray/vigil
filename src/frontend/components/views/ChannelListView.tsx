@@ -60,11 +60,11 @@ export function ChannelListView() {
         />
 
         <div className="flex gap-3">
-          <Link to="/config" className="btn-gold no-underline">
-            &lt; Back to Config
+          <Link to="/notifications" className="btn-gold no-underline">
+            &lt; Back to History
           </Link>
           <Link
-            to="/config/channels/add"
+            to="/notifications/channels/add"
             className="btn-gold active no-underline"
           >
             + Add Channel
@@ -132,7 +132,14 @@ function ChannelRow({
       </td>
       <td className="flex p-4 justify-end gap-3">
         <Link
-          to={`/config/channels/${channel.id}/edit`}
+          to={`/notifications?channelId=${channel.id}`}
+          className="text-xs uppercase hover:text-gold-primary text-gold-dim transition-colors"
+        >
+          History
+        </Link>
+        <span className="text-gold-faint text-xs">|</span>
+        <Link
+          to={`/notifications/channels/${channel.id}/edit`}
           className="text-xs uppercase hover:text-gold-primary text-gold-dim transition-colors"
         >
           Edit

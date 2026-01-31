@@ -29,6 +29,7 @@ export function AppLayout() {
               label="Incidents"
               hasAlert={isIncidentState}
             />
+            <NavButton to="/notifications" label="Notifications" />
             <NavButton to="/config" label="Config" />
           </div>
         </nav>

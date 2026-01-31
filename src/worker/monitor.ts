@@ -8,11 +8,13 @@ import {
   parseExpectedStatusCodes,
   shouldNotify,
 } from './lib/state-machine';
+import { deliverWebhookWithRetry } from './lib/webhook';
 import {
   checkResults,
   incidents,
   monitors,
   notificationChannels,
+  notificationLogs,
 } from './schema';
 import type {
   CheckResult,
@@ -28,6 +30,9 @@ export class MonitorObject extends DurableObject {
   private consecutiveFailures = 0;
   private consecutiveSuccesses = 0;
   private readonly THRESHOLD = 3;
+
+  private readonly WEBHOOK_TIMEOUT_MS = 5000;
+  private readonly MAX_RETRIES = 3;
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -300,22 +305,61 @@ export class MonitorObject extends DurableObject {
     };
 
     await Promise.allSettled(
-      channels.map(async channel => {
-        const config = channel.config as { url?: string };
-
-        if (channel.type === 'WEBHOOK' && config.url) {
-          try {
-            await fetch(config.url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload),
-            });
-          } catch (err) {
-            console.error(`Failed to notify channel ${channel.id}:`, err);
-          }
-        }
-      }),
+      channels.map(channel =>
+        this.deliverWebhook(channel, payload, db, result.monitorId),
+      ),
     );
+  }
+
+  private async deliverWebhook(
+    channel: { id: string; type: string; config: unknown },
+    payload: object,
+    db: ReturnType<typeof createDb>,
+    monitorId: string,
+  ) {
+    const config = channel.config as { url?: string };
+    if (channel.type !== 'WEBHOOK' || !config.url) return;
+
+    const result = await deliverWebhookWithRetry(
+      {
+        url: config.url,
+        timeoutMs: this.WEBHOOK_TIMEOUT_MS,
+        maxRetries: this.MAX_RETRIES,
+      },
+      payload,
+    );
+
+    await this.logNotification(
+      db,
+      channel.id,
+      monitorId,
+      (payload as { event: string }).event,
+      result.success,
+      result.error,
+    );
+  }
+
+  private async logNotification(
+    db: ReturnType<typeof createDb>,
+    channelId: string,
+    monitorId: string,
+    event: string,
+    success: boolean,
+    error: string | null,
+  ) {
+    try {
+      await db.insert(notificationLogs).values({
+        id: ulid(),
+        channelId,
+        monitorId,
+        event,
+        success: success ? 1 : 0,
+        error,
+        createdAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('Failed to log notification:', err);
+    }
   }
 
   async refreshConfig(monitorId: string) {

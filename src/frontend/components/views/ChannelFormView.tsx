@@ -23,7 +23,7 @@ export function ChannelFormView() {
     mutationFn: api.createChannel,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
-      navigate('/config/channels');
+      navigate('/notifications/channels');
     },
   });
 
@@ -80,7 +80,7 @@ export function ChannelFormView() {
             </span>
           )}
           <Link
-            to="/config/channels"
+            to="/notifications/channels"
             className="text-xs uppercase hover:text-gold-primary text-gold-dim transition-colors font-mono"
           >
             &lt; Back to Channels
@@ -91,7 +91,7 @@ export function ChannelFormView() {
       <ChannelForm
         defaultValues={channel}
         onSubmit={handleSubmit}
-        onCancel={() => navigate('/config/channels')}
+        onCancel={() => navigate('/notifications/channels')}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
         submitError={createMutation.error || updateMutation.error}
       />

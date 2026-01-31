@@ -1,5 +1,11 @@
 import { QueryClient } from '@tanstack/react-query';
-import type { Channel, CheckResult, Incident, Monitor } from '../types';
+import type {
+  Channel,
+  CheckResult,
+  Incident,
+  Monitor,
+  NotificationLog,
+} from '../types';
 
 const API_BASE = '/api/v1';
 
@@ -156,6 +162,25 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to delete channel');
     return res.json();
+  },
+
+  // Notification Logs
+  fetchNotificationLogs: async (filter?: {
+    channelId?: string;
+    monitorId?: string;
+    success?: boolean;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (filter?.channelId) params.append('channelId', filter.channelId);
+    if (filter?.monitorId) params.append('monitorId', filter.monitorId);
+    if (filter?.success !== undefined)
+      params.append('success', filter.success.toString());
+    if (filter?.limit) params.append('limit', filter.limit.toString());
+
+    const res = await fetch(`${API_BASE}/notifications?${params.toString()}`);
+    if (!res.ok) throw new Error('Failed to fetch notification logs');
+    return res.json() as Promise<{ data: NotificationLog[] }>;
   },
 };
 
