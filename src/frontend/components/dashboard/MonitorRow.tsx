@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { cn } from '../../lib/utils';
+import { cn, formatInterval, formatSecondsAgo } from '../../lib/utils';
 import type { Monitor } from '../../types';
 
 export function MonitorRow({ monitor }: { monitor: Monitor }) {
@@ -142,15 +142,8 @@ function TimeInfo({
 }) {
   if (!hasData) return <span>--</span>;
 
-  const agoText =
-    secondsAgo < 60
-      ? `${secondsAgo}s ago`
-      : `${Math.floor(secondsAgo / 60)}m ago`;
-
-  const intervalText =
-    intervalSeconds < 60
-      ? `every ${intervalSeconds}s`
-      : `every ${Math.floor(intervalSeconds / 60)}m`;
+  const agoText = formatSecondsAgo(secondsAgo);
+  const intervalText = formatInterval(intervalSeconds);
 
   return <span title={`Checks ${intervalText}`}>{agoText}</span>;
 }

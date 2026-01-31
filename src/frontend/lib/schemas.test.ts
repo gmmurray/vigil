@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { monitorSchema } from './schemas';
+import {
+  channelSchema,
+  monitorSchema,
+  numberFromInput,
+  webhookConfigSchema,
+} from './schemas';
 
 describe('monitorSchema', () => {
   const validMonitor = {
@@ -146,5 +151,130 @@ describe('monitorSchema', () => {
       });
       expect(result.success).toBe(false);
     });
+  });
+});
+
+describe('webhookConfigSchema', () => {
+  it('accepts valid webhook URL', () => {
+    const result = webhookConfigSchema.safeParse({
+      url: 'https://hooks.slack.com/services/xxx',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects invalid URL', () => {
+    const result = webhookConfigSchema.safeParse({
+      url: 'not-a-url',
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toContain('url');
+    }
+  });
+
+  it('rejects missing URL', () => {
+    const result = webhookConfigSchema.safeParse({});
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects empty URL', () => {
+    const result = webhookConfigSchema.safeParse({ url: '' });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('channelSchema', () => {
+  const validChannel = {
+    type: 'WEBHOOK' as const,
+    config: { url: 'https://hooks.example.com/webhook' },
+    enabled: true,
+  };
+
+  it('accepts valid channel config', () => {
+    const result = channelSchema.safeParse(validChannel);
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts channel without enabled field', () => {
+    const { enabled, ...channelWithoutEnabled } = validChannel;
+    const result = channelSchema.safeParse(channelWithoutEnabled);
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects invalid type', () => {
+    const result = channelSchema.safeParse({
+      ...validChannel,
+      type: 'INVALID',
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toContain('type');
+    }
+  });
+
+  it('rejects missing type', () => {
+    const { type, ...channelWithoutType } = validChannel;
+    const result = channelSchema.safeParse(channelWithoutType);
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing config', () => {
+    const { config, ...channelWithoutConfig } = validChannel;
+    const result = channelSchema.safeParse(channelWithoutConfig);
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects invalid config URL', () => {
+    const result = channelSchema.safeParse({
+      ...validChannel,
+      config: { url: 'not-a-url' },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].path).toContain('config');
+    }
+  });
+
+  it('accepts enabled as false', () => {
+    const result = channelSchema.safeParse({
+      ...validChannel,
+      enabled: false,
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('numberFromInput', () => {
+  it('returns undefined for empty string', () => {
+    expect(numberFromInput('')).toBeUndefined();
+  });
+
+  it('returns undefined for null', () => {
+    expect(numberFromInput(null)).toBeUndefined();
+  });
+
+  it('returns undefined for undefined', () => {
+    expect(numberFromInput(undefined)).toBeUndefined();
+  });
+
+  it('converts valid numeric string to number', () => {
+    expect(numberFromInput('42')).toBe(42);
+    expect(numberFromInput('3.14')).toBe(3.14);
+    expect(numberFromInput('0')).toBe(0);
+  });
+
+  it('converts negative numeric string to number', () => {
+    expect(numberFromInput('-10')).toBe(-10);
+  });
+
+  it('returns original value for non-numeric string', () => {
+    expect(numberFromInput('abc')).toBe('abc');
+    expect(numberFromInput('12abc')).toBe('12abc');
+  });
+
+  it('passes through numbers unchanged', () => {
+    expect(numberFromInput(42)).toBe(42);
+    expect(numberFromInput(0)).toBe(0);
+    expect(numberFromInput(-5)).toBe(-5);
   });
 });

@@ -14,3 +14,13 @@ export const getDuration = (start: string, end: string | null) => {
   const mins = minutes % 60;
   return `${hours}h ${mins}m`;
 };
+
+export const formatSecondsAgo = (secondsAgo: number): string => {
+  if (secondsAgo < 60) return `${secondsAgo}s ago`;
+  return `${Math.floor(secondsAgo / 60)}m ago`;
+};
+
+export const formatInterval = (intervalSeconds: number): string => {
+  if (intervalSeconds < 60) return `every ${intervalSeconds}s`;
+  return `every ${Math.floor(intervalSeconds / 60)}m`;
+};

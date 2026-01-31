@@ -993,13 +993,11 @@ describe('monitors routes', () => {
     it('allows setting headers to null', async () => {
       const { env, mockDb } = createMockEnv();
 
-      mockDb.select = vi
-        .fn()
-        .mockReturnValue(
-          createSelectChain({
-            get: { ...sampleMonitor, headers: { foo: 'bar' } },
-          }),
-        );
+      mockDb.select = vi.fn().mockReturnValue(
+        createSelectChain({
+          get: { ...sampleMonitor, headers: { foo: 'bar' } },
+        }),
+      );
 
       mockDb.update = vi.fn().mockReturnValue({
         set: vi.fn().mockReturnValue({

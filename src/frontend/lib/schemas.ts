@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const numberFromInput = (val: unknown) => {
+export const numberFromInput = (val: unknown) => {
   if (val === '' || val === null || val === undefined) {
     return undefined;
   }
