@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { cleanupCheckResults } from './jobs/cleanup-check-results';
 import { MonitorObject } from './monitor';
 import channels from './routes/channels';
 import incidents from './routes/incidents';
@@ -26,4 +27,20 @@ api.route('/stats', stats);
 // Mount API group to main app under /api/v1
 app.route('/api/v1', api);
 
-export default app;
+export default {
+  fetch: app.fetch,
+  async scheduled(
+    _event: ScheduledEvent,
+    env: CloudflareBindings,
+    ctx: ExecutionContext,
+  ) {
+    const retentionDays = Number(env.CHECK_RESULTS_RETENTION_DAYS) || 15;
+    ctx.waitUntil(
+      cleanupCheckResults(env.DB, retentionDays).then(({ deletedCount }) => {
+        console.log(
+          `[Cleanup] Deleted ${deletedCount} check results older than ${retentionDays} days`,
+        );
+      }),
+    );
+  },
+};

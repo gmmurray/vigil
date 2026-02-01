@@ -4,6 +4,12 @@
   "main": "./src/worker/index.ts",
   "compatibility_date": "2026-01-01",
   "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "CHECK_RESULTS_RETENTION_DAYS": "15"
+  },
+  "triggers": {
+    "crons": ["0 3 * * *"]
+  },
   "observability": {
     "enabled": true
   },

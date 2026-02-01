@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { api } from './api';
 
 // Mock fetch globally
@@ -433,7 +434,10 @@ describe('api', () => {
         json: () => Promise.resolve({ id: 'ch_123' }),
       });
 
-      const data = { type: 'WEBHOOK', config: { url: 'https://hook.example' } };
+      const data = {
+        type: 'WEBHOOK',
+        config: { url: 'https://hook.example' },
+      } as const;
       await api.createChannel(data);
 
       expect(mockFetch).toHaveBeenCalledWith('/api/v1/channels', {
