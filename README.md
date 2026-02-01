@@ -1,6 +1,6 @@
 # Vigil
 
-Uptime monitoring that runs on your Cloudflare account. One repo, one deploy, globally distributed checks in minutes.
+Uptime monitoring that runs on your Cloudflare account. One repo, one deploy, monitoring from the edge in minutes.
 
 <!-- TODO: Deploy to Cloudflare button -->
 
@@ -12,29 +12,31 @@ Uptime monitoring that runs on your Cloudflare account. One repo, one deploy, gl
 
 ## Overview
 
-Vigil is a self-hosted uptime monitoring tool that runs on Cloudflare Workers. It uses Durable Objects for per-monitor scheduling, D1 for persistence, and deploys with a single command.
+Vigil is a self-hosted uptime monitoring tool that runs on Cloudflare Workers. It uses Durable Objects for per-monitor scheduling, D1 for persistence, and deploys with a single command. It is built for personal use and shared openly for public benefit.
 
 **Scope:** Designed for 10-100 endpoints—personal projects, small teams, or a handful of client sites. Not built for enterprise multi-tenancy or complex integrations.
 
 **Platform:** Cloudflare-native. Workers, Durable Objects, and D1 run on the same edge nodes and communicate through bindings. No containers, no orchestration, no internal API keys.
 
+**Expectations:** Vigil is a personal project shared as open source. It runs entirely inside your Cloudflare account—availability, alert delivery, and data retention depend on your Cloudflare configuration and limits. No SLA, no redundancy across providers, no external watchdog. If Cloudflare has an outage, so does your monitoring.
+
 ## Tech Stack
 
-| Layer | Technologies |
-|-------|--------------|
-| Runtime | Cloudflare Workers, Durable Objects, D1 (SQLite) |
-| Backend | Hono, Drizzle ORM |
-| Frontend | React, Vite, TailwindCSS, React Router, TanStack Query |
-| Forms & Validation | React Hook Form, Zod |
-| Charts | Recharts |
-| Dev Tooling | TypeScript, Biome, Vitest, Wrangler |
+| Layer              | Technologies                                           |
+| ------------------ | ------------------------------------------------------ |
+| Runtime            | Cloudflare Workers, Durable Objects, D1 (SQLite)       |
+| Backend            | Hono, Drizzle ORM                                      |
+| Frontend           | React, Vite, TailwindCSS, React Router, TanStack Query |
+| Forms & Validation | React Hook Form, Zod                                   |
+| Charts             | Recharts                                               |
+| Dev Tooling        | TypeScript, Biome, Vitest, Wrangler                    |
 
 ## Features
 
 - **HTTP endpoint monitoring** with configurable methods, headers, expected status codes, and timeouts
 - **Smart status detection** — UP, DEGRADED, DOWN, RECOVERING states with consecutive failure thresholds
 - **Automatic incident tracking** — incidents open when services go down and close on recovery
-- **Notifications via webhooks** with retry logic and exponential backoff (notification system is extensible to other channels)
+- **Notifications via webhooks** with retry logic and exponential backoff—failed deliveries are logged but not retried indefinitely (notification system is extensible to other channels)
 - **Real-time dashboard** with response time charts and check history
 - **Data retention controls** — automatic cleanup of old check results
 - **Test before you commit** — validate endpoints and notification channels before enabling
@@ -110,7 +112,7 @@ Vigil runs entirely on Cloudflare's edge infrastructure:
 
 **How it works:**
 
-- **Each monitor gets its own Durable Object.** This provides natural isolation—one misbehaving endpoint can't affect others. The DO manages its own check schedule using Alarms.
+- **Each monitor gets its own Durable Object.** This provides natural isolation—one misbehaving endpoint can't affect others. The DO manages its own check schedule using Alarms. Checks execute from Cloudflare's edge location hosting the DO instance; Vigil does not fan out checks to multiple regions per endpoint.
 
 - **Checks run on a configurable interval** (default: 60 seconds). The Durable Object wakes up, performs the HTTP check, records the result, and goes back to sleep.
 
@@ -138,6 +140,8 @@ Per-monitor settings are configured in the UI:
 | Request timeout       | 5s      | How long to wait for a response            |
 | Expected status codes | 200     | Comma-separated list (e.g., `200,201,204`) |
 | Consecutive failures  | 3       | Failures required before marking DOWN      |
+
+Lower check intervals and longer retention increase Durable Object wakeups and D1 storage, which may affect Cloudflare billing.
 
 ## Local Development
 
@@ -217,7 +221,3 @@ Migrations are applied automatically before each deploy.
 ## License
 
 MIT
-
----
-
-Built for personal use. Shared for public benefit.
