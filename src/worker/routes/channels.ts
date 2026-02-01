@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import { createDb } from '../db';
+import { deliverWebhookWithRetry } from '../lib/webhook';
 import { notificationChannels } from '../schema';
 import type { NewChannel, UpdateChannel } from '../types';
 
@@ -28,6 +29,49 @@ app.get('/:id', async c => {
   }
 
   return c.json(channel);
+});
+
+app.post('/:id/test', async c => {
+  const id = c.req.param('id');
+  const db = createDb(c.env.DB);
+
+  const channel = await db
+    .select()
+    .from(notificationChannels)
+    .where(eq(notificationChannels.id, id))
+    .get();
+
+  if (!channel) {
+    return c.json({ error: 'Channel not found' }, 404);
+  }
+
+  const config = channel.config as { url: string };
+  if (!config?.url) {
+    return c.json({ error: 'Channel has no webhook URL configured' }, 400);
+  }
+
+  const testPayload = {
+    test: true,
+    event: 'TEST',
+    timestamp: new Date().toISOString(),
+    message:
+      'This is a test notification from Vigil. If you receive this, your webhook is configured correctly.',
+    monitor: {
+      id: 'TEST',
+      name: 'Test Notification',
+      url: 'https://example.com/test',
+    },
+  };
+
+  const result = await deliverWebhookWithRetry(
+    { url: config.url, timeoutMs: 10000, maxRetries: 1 },
+    testPayload,
+  );
+
+  return c.json({
+    success: result.success,
+    error: result.error,
+  });
 });
 
 app.post('/', async c => {

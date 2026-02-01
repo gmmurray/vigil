@@ -177,6 +177,14 @@ export const api = {
     return res.json();
   },
 
+  testChannel: async (id: string) => {
+    const res = await fetch(`${API_BASE}/channels/${id}/test`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to test channel');
+    return res.json() as Promise<{ success: boolean; error: string | null }>;
+  },
+
   // Notification Logs
   fetchNotificationLogs: async (filter?: {
     channelId?: string;

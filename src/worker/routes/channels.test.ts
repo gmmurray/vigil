@@ -1,11 +1,17 @@
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
 import { createDb } from '../db';
+import { deliverWebhookWithRetry } from '../lib/webhook';
 import app from './channels';
 
 // Mock the createDb module
 vi.mock('../db', () => ({
   createDb: vi.fn(),
+}));
+
+// Mock webhook delivery
+vi.mock('../lib/webhook', () => ({
+  deliverWebhookWithRetry: vi.fn(),
 }));
 
 // Mock ulid to return predictable IDs
@@ -478,6 +484,94 @@ describe('channels routes', () => {
       expect(data.success).toBe(true);
       // update should not be called when no fields provided
       expect(mockDb.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /:id/test', () => {
+    it('sends test notification successfully', async () => {
+      const { env, mockDb } = createMockEnv();
+
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(createSelectChain({ get: sampleChannel }));
+
+      vi.mocked(deliverWebhookWithRetry).mockResolvedValue({
+        success: true,
+        error: null,
+        attempts: 1,
+      });
+
+      const res = await app.request('/ch_123/test', { method: 'POST' }, env);
+      const data = (await res.json()) as { success: boolean; error: null };
+
+      expect(res.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.error).toBeNull();
+
+      expect(deliverWebhookWithRetry).toHaveBeenCalledWith(
+        {
+          url: 'https://hooks.example.com/webhook',
+          timeoutMs: 10000,
+          maxRetries: 1,
+        },
+        expect.objectContaining({
+          test: true,
+          event: 'TEST',
+          message: expect.stringContaining('test notification'),
+        }),
+      );
+    });
+
+    it('returns failure when webhook delivery fails', async () => {
+      const { env, mockDb } = createMockEnv();
+
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(createSelectChain({ get: sampleChannel }));
+
+      vi.mocked(deliverWebhookWithRetry).mockResolvedValue({
+        success: false,
+        error: 'HTTP 500',
+        attempts: 1,
+      });
+
+      const res = await app.request('/ch_123/test', { method: 'POST' }, env);
+      const data = (await res.json()) as { success: boolean; error: string };
+
+      expect(res.status).toBe(200);
+      expect(data.success).toBe(false);
+      expect(data.error).toBe('HTTP 500');
+    });
+
+    it('returns 404 when channel not found', async () => {
+      const { env, mockDb } = createMockEnv();
+
+      mockDb.select = vi.fn().mockReturnValue(createSelectChain({ get: null }));
+
+      const res = await app.request(
+        '/nonexistent/test',
+        { method: 'POST' },
+        env,
+      );
+
+      expect(res.status).toBe(404);
+      const data = (await res.json()) as { error: string };
+      expect(data.error).toBe('Channel not found');
+    });
+
+    it('returns 400 when channel has no URL configured', async () => {
+      const { env, mockDb } = createMockEnv();
+
+      const channelNoUrl = { ...sampleChannel, config: {} };
+      mockDb.select = vi
+        .fn()
+        .mockReturnValue(createSelectChain({ get: channelNoUrl }));
+
+      const res = await app.request('/ch_123/test', { method: 'POST' }, env);
+
+      expect(res.status).toBe(400);
+      const data = (await res.json()) as { error: string };
+      expect(data.error).toBe('Channel has no webhook URL configured');
     });
   });
 

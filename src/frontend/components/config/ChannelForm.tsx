@@ -1,7 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
+import { api } from '../../lib/api';
 import { useDeleteChannel } from '../../lib/queries';
 import { type ChannelFormData, channelSchema } from '../../lib/schemas';
 import { cn } from '../../lib/utils';
@@ -41,6 +43,22 @@ export function ChannelForm({
 }: ChannelFormProps) {
   const navigate = useNavigate();
   const deleteMutation = useDeleteChannel();
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    error: string | null;
+  } | null>(null);
+
+  const testMutation = useMutation({
+    mutationFn: () => api.testChannel(defaultValues!.id),
+    onSuccess: result => {
+      setTestResult(result);
+      setTimeout(() => setTestResult(null), 5000);
+    },
+    onError: () => {
+      setTestResult({ success: false, error: 'Request failed' });
+      setTimeout(() => setTestResult(null), 5000);
+    },
+  });
 
   const {
     register,
@@ -81,7 +99,28 @@ export function ChannelForm({
       <div className="text-lg font-medium text-gold-primary border-b border-gold-faint pb-2 mb-6 flex justify-between">
         <div>{defaultValues ? 'EDIT CHANNEL' : 'NEW CHANNEL'}</div>
         {defaultValues && (
-          <div>
+          <div className="flex items-center gap-4">
+            {testResult && (
+              <span
+                className={cn(
+                  'text-xs font-mono animate-pulse',
+                  testResult.success ? 'text-retro-green' : 'text-retro-red',
+                )}
+              >
+                {testResult.success
+                  ? ':: TEST SENT ::'
+                  : `:: FAILED: ${testResult.error} ::`}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => testMutation.mutate()}
+              disabled={testMutation.isPending}
+              className="text-xs uppercase hover:text-gold-primary text-gold-dim transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {testMutation.isPending ? 'Testing...' : 'Test'}
+            </button>
+            <span className="text-gold-faint text-xs">|</span>
             <button
               type="button"
               onClick={handleDelete}

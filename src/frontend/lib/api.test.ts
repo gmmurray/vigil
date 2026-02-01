@@ -505,6 +505,53 @@ describe('api', () => {
     });
   });
 
+  describe('testChannel', () => {
+    it('sends POST request to correct URL', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ success: true, error: null }),
+      });
+
+      await api.testChannel('ch_123');
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/v1/channels/ch_123/test', {
+        method: 'POST',
+      });
+    });
+
+    it('returns success result', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ success: true, error: null }),
+      });
+
+      const result = await api.testChannel('ch_123');
+
+      expect(result.success).toBe(true);
+      expect(result.error).toBeNull();
+    });
+
+    it('returns failure result with error', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ success: false, error: 'HTTP 500' }),
+      });
+
+      const result = await api.testChannel('ch_123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('HTTP 500');
+    });
+
+    it('throws error on request failure', async () => {
+      mockFetch.mockResolvedValue({ ok: false });
+
+      await expect(api.testChannel('ch_123')).rejects.toThrow(
+        'Failed to test channel',
+      );
+    });
+  });
+
   describe('fetchNotificationLogs', () => {
     it('fetches logs without filters', async () => {
       mockFetch.mockResolvedValue({
