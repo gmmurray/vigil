@@ -66,20 +66,17 @@ Vigil has no in-app authentication. It's designed to sit behind [Cloudflare Acce
    - Click **Add an application** → **Self-hosted**
    - Name it something like "Vigil"
    - Set the **Application domain** to your Worker's URL (e.g., `vigil.your-subdomain.workers.dev`)
-   - For the path, use `/*` to protect the entire application
 
 3. **Configure a Policy**
-   - Create a policy name (e.g., "Allow me")
-   - Under **Include**, add a rule:
+   - Create a policy name (e.g., "Allow me") **Policies** → **Add a policy**
+   - Under **Add rules** → **Include**, add a rule:
      - For personal use: **Emails** → your email address
-     - For team use: **Emails ending in** → `@yourcompany.com`
    - Save the policy
 
-4. **Authentication Method**
-   If you haven't already, configure an identity provider under **Settings** → **Authentication**. For personal use, **One-time PIN** (email-based) works well and requires no external IdP setup.
-
-5. **Save and Test**
+4. **Save and Test**
    Save your application, then visit your Vigil URL—you should be prompted to authenticate before seeing the dashboard.
+
+If your use case differs from the above instructions, visit the [Cloudflare Docs](https://developers.cloudflare.com/cloudflare-one/).
 
 Once Access is configured, only authenticated users can reach your Vigil instance. The application itself doesn't need to know or care about who's logged in.
 
