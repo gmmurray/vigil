@@ -10,15 +10,24 @@ Uptime monitoring that runs on your Cloudflare account. One repo, one deploy, gl
 
 ![Vigil Dashboard](docs/screenshot.png)
 
-## Why Vigil
+## Overview
 
-Most uptime monitoring falls into two camps: expensive SaaS platforms ($29-79/month) or complex self-hosted solutions that need their own infrastructure babysitting.
+Vigil is a self-hosted uptime monitoring tool that runs on Cloudflare Workers. It uses Durable Objects for per-monitor scheduling, D1 for persistence, and deploys with a single command.
 
-Vigil sits in the middle. It's a single-repo deployment that runs entirely on Cloudflare's edge infrastructure—Workers, Durable Objects, and D1. You get globally distributed health checks, incident tracking, and webhook notifications for free or a few dollars a month with Cloudflare's generous pricing.
+**Scope:** Designed for 10-100 endpoints—personal projects, small teams, or a handful of client sites. Not built for enterprise multi-tenancy or complex integrations.
 
-**Built for actual scale, not imagined scale.** Vigil is designed for 10-100 endpoints. If you're monitoring a personal project portfolio, a small team's services, or a handful of client sites, this is the right tool. If you need enterprise-grade multi-tenancy and PagerDuty integrations, this isn't it—and that's intentional.
+**Platform:** Cloudflare-native. Workers, Durable Objects, and D1 run on the same edge nodes and communicate through bindings. No containers, no orchestration, no internal API keys.
 
-**Cloudflare-native by design.** Vigil is built specifically for Cloudflare because the platform makes this kind of tool simple to build and operate. Workers, Durable Objects, and D1 run on the same edge nodes, communicate through bindings instead of API keys, and deploy with a single command. No containers, no orchestration, no secrets management between services—just infrastructure that works well together.
+## Tech Stack
+
+| Layer | Technologies |
+|-------|--------------|
+| Runtime | Cloudflare Workers, Durable Objects, D1 (SQLite) |
+| Backend | Hono, Drizzle ORM |
+| Frontend | React, Vite, TailwindCSS, React Router, TanStack Query |
+| Forms & Validation | React Hook Form, Zod |
+| Charts | Recharts |
+| Dev Tooling | TypeScript, Biome, Vitest, Wrangler |
 
 ## Features
 
