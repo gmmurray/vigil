@@ -18,14 +18,14 @@ Vigil sits in the middle. It's a single-repo deployment that runs entirely on Cl
 
 **Built for actual scale, not imagined scale.** Vigil is designed for 10-100 endpoints. If you're monitoring a personal project portfolio, a small team's services, or a handful of client sites, this is the right tool. If you need enterprise-grade multi-tenancy and PagerDuty integrations, this isn't it—and that's intentional.
 
-**No vendor lock-in anxiety.** Yes, Vigil is Cloudflare-native. That's a feature. By leaning into the platform instead of abstracting it away, you get operational simplicity, predictable costs, and zero infrastructure to manage. If you're already using Cloudflare, you're not adding complexity—you're consolidating it.
+**Cloudflare-native by design.** Vigil is built specifically for Cloudflare because the platform makes this kind of tool simple to build and operate. Workers, Durable Objects, and D1 run on the same edge nodes, communicate through bindings instead of API keys, and deploy with a single command. No containers, no orchestration, no secrets management between services—just infrastructure that works well together.
 
 ## Features
 
 - **HTTP endpoint monitoring** with configurable methods, headers, expected status codes, and timeouts
 - **Smart status detection** — UP, DEGRADED, DOWN, RECOVERING states with consecutive failure thresholds
 - **Automatic incident tracking** — incidents open when services go down and close on recovery
-- **Webhook notifications** with retry logic and exponential backoff
+- **Notifications via webhooks** with retry logic and exponential backoff (notification system is extensible to other channels)
 - **Real-time dashboard** with response time charts and check history
 - **Data retention controls** — automatic cleanup of old check results
 - **Test before you commit** — validate endpoints and notification channels before enabling
@@ -42,15 +42,9 @@ Vigil sits in the middle. It's a single-repo deployment that runs entirely on Cl
    - The required Durable Object migrations
 4. Once deployed, your instance will be available at `vigil.<your-subdomain>.workers.dev`
 
-### After Deployment
-
-Your Vigil instance has no built-in authentication. Before adding any monitors, you'll want to secure it with Cloudflare Access. See [Securing Your Instance](#securing-your-instance) below.
-
 ## Securing Your Instance
 
-Vigil deliberately has no in-app authentication. Instead, it's designed to sit behind [Cloudflare Access](https://www.cloudflare.com/zero-trust/products/access/), which handles auth at the network layer before requests ever reach your application.
-
-This isn't a shortcut—it's a deliberate architecture choice. Cloudflare Access gives you SSO, MFA, and device posture checks without adding auth complexity to the application itself.
+Vigil has no in-app authentication—it's designed to sit behind [Cloudflare Access](https://www.cloudflare.com/zero-trust/products/access/), which handles auth at the network layer before requests ever reach your application. You get SSO, MFA, and device posture checks without adding auth complexity to the application itself.
 
 ### Setting Up Cloudflare Access
 
@@ -171,9 +165,6 @@ pnpm test
 
 # Unit tests (single run)
 pnpm test:run
-
-# Integration tests
-pnpm test:integration
 ```
 
 ### Code Quality
