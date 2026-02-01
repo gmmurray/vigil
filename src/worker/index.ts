@@ -14,6 +14,11 @@ const app = new Hono<{ Bindings: CloudflareBindings }>();
 // Root check
 app.get('/', c => c.text('Vigil API'));
 
+// Health check endpoint
+app.get('/health', c =>
+  c.json({ status: 'ok', timestamp: new Date().toISOString() }),
+);
+
 // Create API grouping
 const api = new Hono<{ Bindings: CloudflareBindings }>();
 

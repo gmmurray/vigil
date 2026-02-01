@@ -57,18 +57,23 @@ export class MonitorObject extends DurableObject {
         return new Response('Monitor not initialized', { status: 400 });
       }
       const force = url.searchParams.get('force') === 'true';
+      const debug = url.searchParams.get('debug') === 'true';
 
       if (force) {
         // Full lifecycle: check endpoint, record result, update state
         await this.loadCounters();
-        const result = await this.performCheckLifecycle();
-        return new Response(JSON.stringify(result), {
+        const { result, timing } = await this.performCheckLifecycle();
+        const response = debug ? { ...result, _debug: timing } : result;
+        return new Response(JSON.stringify(response), {
           headers: { 'Content-Type': 'application/json' },
         });
       } else {
         // Probe-only: check endpoint without persisting
+        const start = Date.now();
         const result = await this.check();
-        return new Response(JSON.stringify(result), {
+        const checkMs = Date.now() - start;
+        const response = debug ? { ...result, _debug: { checkMs } } : result;
+        return new Response(JSON.stringify(response), {
           headers: { 'Content-Type': 'application/json' },
         });
       }
@@ -132,7 +137,9 @@ export class MonitorObject extends DurableObject {
         await this.performCheckLifecycle();
       }
     } catch (err) {
-      console.error('Alarm failed:', err);
+      console.error(
+        `[Alarm Failed] monitor=${this.config?.id} error="${err instanceof Error ? err.message : err}"`,
+      );
     } finally {
       await this.scheduleAlarm();
     }
@@ -153,11 +160,32 @@ export class MonitorObject extends DurableObject {
     );
   }
 
-  async performCheckLifecycle(): Promise<CheckResult> {
+  async performCheckLifecycle(): Promise<{
+    result: CheckResult;
+    timing: { totalMs: number; checkMs: number };
+  }> {
+    const startTotal = Date.now();
+    const startCheck = Date.now();
     const result = await this.check();
+    const checkMs = Date.now() - startCheck;
 
     const prevStatus = this.config?.status || 'DOWN';
     const newStatus = this.calculateState(result);
+
+    // Log check failures with context
+    if (result.status === 'DOWN') {
+      console.error(
+        `[Check Failed] monitor=${this.config?.id} url=${this.config?.url} ` +
+          `status=${result.statusCode} error="${result.error}" responseTime=${result.responseTimeMs}ms`,
+      );
+    }
+
+    // Log state transitions
+    if (newStatus !== prevStatus) {
+      console.log(
+        `[State Change] monitor=${this.config?.id} ${prevStatus} -> ${newStatus}`,
+      );
+    }
 
     this.broadcast({
       type: 'CHECK_COMPLETED',
@@ -169,7 +197,12 @@ export class MonitorObject extends DurableObject {
 
     this.ctx.waitUntil(this.handleSideEffects(result, newStatus, prevStatus));
 
-    return result;
+    const totalMs = Date.now() - startTotal;
+    console.log(
+      `[Check Complete] monitor=${this.config?.id} status=${result.status} totalMs=${totalMs} checkMs=${checkMs}`,
+    );
+
+    return { result, timing: { totalMs, checkMs } };
   }
 
   calculateState(result: CheckResult): MonitorStatus {
