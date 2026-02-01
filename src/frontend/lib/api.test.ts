@@ -371,6 +371,35 @@ describe('api', () => {
       });
     });
 
+    it('sends POST request with headers and body', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            success: true,
+            statusCode: 200,
+            responseTime: 100,
+            error: null,
+          }),
+      });
+
+      const config = {
+        url: 'https://example.com',
+        method: 'POST',
+        timeoutMs: 5000,
+        expectedStatus: '200',
+        headers: { Authorization: 'Bearer token123', 'X-Custom': 'value' },
+        body: '{"key": "value"}',
+      };
+      await api.testMonitorUrl(config);
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/v1/monitors/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+    });
+
     it('throws error on failure', async () => {
       mockFetch.mockResolvedValue({ ok: false });
 

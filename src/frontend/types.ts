@@ -9,6 +9,8 @@ export interface Monitor {
   method: string;
   intervalSeconds: number;
   expectedStatus: string;
+  headers?: Record<string, string> | null;
+  body?: string | null;
   status: MonitorStatus;
   enabled: number;
   updatedAt: string;

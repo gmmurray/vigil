@@ -453,7 +453,7 @@ describe('monitors routes', () => {
       expect(res.status).toBe(200);
       expect(data.success).toBe(false);
       expect(data.statusCode).toBe(404);
-      expect(data.error).toBe('Expected 200, got 404');
+      expect(data.error).toBe('Unexpected status code: 404');
 
       mockFetch.mockRestore();
     });
@@ -545,7 +545,7 @@ describe('monitors routes', () => {
       const data = (await res.json()) as { success: boolean; error: string };
 
       expect(data.success).toBe(false);
-      expect(data.error).toBe('Timeout after 1000ms');
+      expect(data.error).toBe('Timeout');
 
       mockFetch.mockRestore();
     });
@@ -573,6 +573,182 @@ describe('monitors routes', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.example.com',
         expect.objectContaining({ method: 'HEAD' }),
+      );
+
+      mockFetch.mockRestore();
+    });
+
+    it('includes custom headers in the request', async () => {
+      const { env } = createMockEnv();
+
+      const mockFetch = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('OK', { status: 200 }));
+
+      await app.request(
+        '/test',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: 'https://api.example.com',
+            headers: {
+              Authorization: 'Bearer token123',
+              'X-Custom-Header': 'custom-value',
+            },
+          }),
+        },
+        env,
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.example.com',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'User-Agent': 'Vigil-Monitor/1.0',
+            Authorization: 'Bearer token123',
+            'X-Custom-Header': 'custom-value',
+          }),
+        }),
+      );
+
+      mockFetch.mockRestore();
+    });
+
+    it('includes body in the request for POST method', async () => {
+      const { env } = createMockEnv();
+
+      const mockFetch = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('OK', { status: 200 }));
+
+      await app.request(
+        '/test',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: 'https://api.example.com',
+            method: 'POST',
+            body: '{"key": "value"}',
+          }),
+        },
+        env,
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.example.com',
+        expect.objectContaining({
+          method: 'POST',
+          body: '{"key": "value"}',
+        }),
+      );
+
+      mockFetch.mockRestore();
+    });
+
+    it('includes body in the request for PUT method', async () => {
+      const { env } = createMockEnv();
+
+      const mockFetch = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('OK', { status: 200 }));
+
+      await app.request(
+        '/test',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: 'https://api.example.com',
+            method: 'PUT',
+            body: '{"updated": true}',
+          }),
+        },
+        env,
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.example.com',
+        expect.objectContaining({
+          method: 'PUT',
+          body: '{"updated": true}',
+        }),
+      );
+
+      mockFetch.mockRestore();
+    });
+
+    it('does not include body for GET method', async () => {
+      const { env } = createMockEnv();
+
+      const mockFetch = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('OK', { status: 200 }));
+
+      await app.request(
+        '/test',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: 'https://api.example.com',
+            method: 'GET',
+            body: '{"should": "be ignored"}',
+          }),
+        },
+        env,
+      );
+
+      const callArgs = mockFetch.mock.calls[0][1] as RequestInit;
+      expect(callArgs.body).toBeUndefined();
+
+      mockFetch.mockRestore();
+    });
+
+    it('includes both headers and body together', async () => {
+      const { env } = createMockEnv();
+
+      const mockFetch = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('Created', { status: 201 }));
+
+      const res = await app.request(
+        '/test',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: 'https://api.example.com',
+            method: 'POST',
+            expectedStatus: '201',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer token',
+            },
+            body: '{"data": "test"}',
+          }),
+        },
+        env,
+      );
+
+      const data = (await res.json()) as {
+        success: boolean;
+        statusCode: number;
+      };
+
+      expect(data.success).toBe(true);
+      expect(data.statusCode).toBe(201);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.example.com',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer token',
+          }),
+          body: '{"data": "test"}',
+        }),
       );
 
       mockFetch.mockRestore();

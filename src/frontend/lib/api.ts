@@ -121,6 +121,8 @@ export const api = {
     method: string;
     timeoutMs: number;
     expectedStatus: string;
+    headers?: Record<string, string>;
+    body?: string;
   }) => {
     const res = await fetch(`${API_BASE}/monitors/test`, {
       method: 'POST',

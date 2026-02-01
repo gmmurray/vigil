@@ -4,10 +4,16 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useDeleteConfig } from '../../lib/queries';
-import { type MonitorFormData, monitorSchema } from '../../lib/schemas';
+import {
+  HTTP_METHODS,
+  type MonitorFormData,
+  monitorSchema,
+} from '../../lib/schemas';
 import { cn } from '../../lib/utils';
 import type { Monitor } from '../../types';
 import { ErrorMsg, FormAlert, Input, Label } from '../ui/FormControls';
+
+const METHODS_WITH_BODY = ['POST', 'PUT', 'PATCH'] as const;
 
 interface MonitorFormProps {
   defaultValues?: Monitor;
@@ -15,6 +21,27 @@ interface MonitorFormProps {
   onCancel: () => void;
   isSubmitting: boolean;
   submitError?: Error | null;
+}
+
+type HeaderRow = { key: string; value: string };
+
+function parseHeaders(
+  headers: Record<string, string> | null | undefined,
+): HeaderRow[] {
+  if (!headers || Object.keys(headers).length === 0) {
+    return [{ key: '', value: '' }];
+  }
+  return Object.entries(headers).map(([key, value]) => ({ key, value }));
+}
+
+function headersToRecord(rows: HeaderRow[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const row of rows) {
+    if (row.key.trim()) {
+      result[row.key.trim()] = row.value;
+    }
+  }
+  return result;
 }
 
 export function MonitorForm({
@@ -26,11 +53,19 @@ export function MonitorForm({
 }: MonitorFormProps) {
   const navigate = useNavigate();
   const deleteMutation = useDeleteConfig();
+  const [advancedOpen, setAdvancedOpen] = useState(
+    () =>
+      !!defaultValues?.headers && Object.keys(defaultValues.headers).length > 0,
+  );
+  const [headerRows, setHeaderRows] = useState<HeaderRow[]>(() =>
+    parseHeaders(defaultValues?.headers),
+  );
 
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(monitorSchema),
@@ -39,6 +74,8 @@ export function MonitorForm({
       ? ({
           ...defaultValues,
           enabled: defaultValues.enabled === 1,
+          headers: defaultValues.headers ?? undefined,
+          body: defaultValues.body ?? undefined,
         } as MonitorFormData)
       : {
           method: 'GET',
@@ -53,6 +90,33 @@ export function MonitorForm({
   const watchedMethod = watch('method') || 'GET';
   const watchedTimeout = watch('timeoutMs') || 5000;
   const watchedExpectedStatus = watch('expectedStatus') || '200';
+  const watchedBody = watch('body') || '';
+
+  const showBodyField = METHODS_WITH_BODY.includes(
+    watchedMethod as (typeof METHODS_WITH_BODY)[number],
+  );
+
+  const updateHeader = (index: number, field: 'key' | 'value', val: string) => {
+    const newRows = [...headerRows];
+    newRows[index] = { ...newRows[index], [field]: val };
+    setHeaderRows(newRows);
+    setValue('headers', headersToRecord(newRows));
+  };
+
+  const addHeaderRow = () => {
+    setHeaderRows([...headerRows, { key: '', value: '' }]);
+  };
+
+  const removeHeaderRow = (index: number) => {
+    const newRows = headerRows.filter((_, i) => i !== index);
+    if (newRows.length === 0) {
+      newRows.push({ key: '', value: '' });
+    }
+    setHeaderRows(newRows);
+    setValue('headers', headersToRecord(newRows));
+  };
+
+  const currentHeaders = headersToRecord(headerRows);
 
   const handleDelete = () => {
     if (!defaultValues) {
@@ -104,6 +168,8 @@ export function MonitorForm({
               method={watchedMethod}
               timeoutMs={Number(watchedTimeout)}
               expectedStatus={watchedExpectedStatus}
+              headers={currentHeaders}
+              body={watchedBody}
             />
           </div>
           <ErrorMsg>{errors.url?.message}</ErrorMsg>
@@ -117,9 +183,11 @@ export function MonitorForm({
             {...register('method')}
             className="bg-panel border border-gold-faint text-gold-primary px-3 py-2 text-sm font-mono w-full focus:outline-none focus:border-gold-primary"
           >
-            <option value="GET">GET</option>
-            <option value="POST">POST</option>
-            <option value="HEAD">HEAD</option>
+            {HTTP_METHODS.map(method => (
+              <option key={method} value={method}>
+                {method}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -140,6 +208,99 @@ export function MonitorForm({
           <Input {...register('expectedStatus')} />
           <ErrorMsg>{errors.expectedStatus?.message}</ErrorMsg>
         </div>
+      </div>
+
+      {/* Advanced Options */}
+      <div className="border border-gold-faint">
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen(!advancedOpen)}
+          className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gold-dim hover:text-gold-primary transition-colors cursor-pointer"
+        >
+          <span
+            className={cn(
+              'transition-transform',
+              advancedOpen ? 'rotate-90' : '',
+            )}
+          >
+            ▸
+          </span>
+          Advanced Options
+          {Object.keys(currentHeaders).length > 0 && (
+            <span className="text-xs text-gold-faint ml-2">
+              ({Object.keys(currentHeaders).length} header
+              {Object.keys(currentHeaders).length !== 1 ? 's' : ''})
+            </span>
+          )}
+        </button>
+
+        {advancedOpen && (
+          <div className="px-4 pb-4 space-y-4 border-t border-gold-faint">
+            {/* Headers Editor */}
+            <div className="pt-4">
+              <Label>
+                Headers
+                <span
+                  className="ml-2 text-xs text-gold-faint font-normal"
+                  title="Headers containing secrets (API keys, tokens) are stored in plaintext in your Cloudflare D1 database."
+                >
+                  ⚠ stored in plaintext
+                </span>
+              </Label>
+              <div className="space-y-2">
+                {headerRows.map((row, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder="Header name"
+                      value={row.key}
+                      onChange={e => updateHeader(index, 'key', e.target.value)}
+                      className="flex-1"
+                    />
+                    <Input
+                      placeholder="Value"
+                      value={row.value}
+                      onChange={e =>
+                        updateHeader(index, 'value', e.target.value)
+                      }
+                      className="flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeHeaderRow(index)}
+                      className="px-3 py-2 text-gold-dim hover:text-retro-red transition-colors cursor-pointer"
+                      title="Remove header"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={addHeaderRow}
+                className="mt-2 text-xs text-gold-dim hover:text-gold-primary transition-colors cursor-pointer"
+              >
+                + Add Header
+              </button>
+            </div>
+
+            {/* Body (for POST/PUT/PATCH) */}
+            {showBodyField && (
+              <div>
+                <Label>Request Body</Label>
+                <textarea
+                  {...register('body')}
+                  placeholder='{"key": "value"}'
+                  className="bg-panel border border-gold-faint text-gold-primary px-3 py-2 text-sm font-mono w-full focus:outline-none focus:border-gold-primary min-h-25 resize-y"
+                />
+                <p className="text-xs text-gold-faint mt-1">
+                  Raw request body sent as-is. For JSON, include a Content-Type:
+                  application/json header above.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 pt-2">
@@ -185,6 +346,8 @@ function UrlTestButton(props: {
   method: string;
   timeoutMs: number;
   expectedStatus: string;
+  headers?: Record<string, string>;
+  body?: string;
 }) {
   const [result, setResult] = useState<TestResult | null>(null);
   const [isTesting, setIsTesting] = useState(false);
@@ -198,14 +361,24 @@ function UrlTestButton(props: {
     setResult(null);
 
     try {
-      setResult(
-        await api.testMonitorUrl({
-          url: props.url,
-          method: props.method,
-          timeoutMs: Number(props.timeoutMs) || 5000,
-          expectedStatus: props.expectedStatus || '200',
-        }),
-      );
+      const config: Parameters<typeof api.testMonitorUrl>[0] = {
+        url: props.url,
+        method: props.method,
+        timeoutMs: Number(props.timeoutMs) || 5000,
+        expectedStatus: props.expectedStatus || '200',
+      };
+
+      // Only include headers if there are any
+      if (props.headers && Object.keys(props.headers).length > 0) {
+        config.headers = props.headers;
+      }
+
+      // Only include body for methods that support it
+      if (props.body && ['POST', 'PUT', 'PATCH'].includes(props.method)) {
+        config.body = props.body;
+      }
+
+      setResult(await api.testMonitorUrl(config));
     } catch {
       setResult({
         success: false,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   channelSchema,
+  HTTP_METHODS,
   monitorSchema,
   numberFromInput,
   webhookConfigSchema,
@@ -150,6 +151,89 @@ describe('monitorSchema', () => {
         timeoutMs: 31000,
       });
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe('HTTP methods', () => {
+    it.each(HTTP_METHODS)('accepts %s method', method => {
+      const result = monitorSchema.safeParse({
+        ...validMonitor,
+        method,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects invalid method', () => {
+      const result = monitorSchema.safeParse({
+        ...validMonitor,
+        method: 'INVALID',
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe('headers validation', () => {
+    it('accepts valid headers object', () => {
+      const result = monitorSchema.safeParse({
+        ...validMonitor,
+        headers: { Authorization: 'Bearer token', 'X-Custom': 'value' },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts empty headers object', () => {
+      const result = monitorSchema.safeParse({
+        ...validMonitor,
+        headers: {},
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts undefined headers', () => {
+      const result = monitorSchema.safeParse({
+        ...validMonitor,
+        headers: undefined,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts monitor without headers field', () => {
+      const { ...monitorWithoutHeaders } = validMonitor;
+      const result = monitorSchema.safeParse(monitorWithoutHeaders);
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('body validation', () => {
+    it('accepts valid body string', () => {
+      const result = monitorSchema.safeParse({
+        ...validMonitor,
+        method: 'POST',
+        body: '{"key": "value"}',
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts empty body string', () => {
+      const result = monitorSchema.safeParse({
+        ...validMonitor,
+        body: '',
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts undefined body', () => {
+      const result = monitorSchema.safeParse({
+        ...validMonitor,
+        body: undefined,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts monitor without body field', () => {
+      const { ...monitorWithoutBody } = validMonitor;
+      const result = monitorSchema.safeParse(monitorWithoutBody);
+      expect(result.success).toBe(true);
     });
   });
 });
