@@ -60,7 +60,7 @@ Vigil has no in-app authentication. It's designed to sit behind [Cloudflare Acce
 ### Setting Up Cloudflare Access
 
 1. **Navigate to Zero Trust**
-   In the Cloudflare dashboard, go to **Zero Trust** → **Access** → **Applications**
+   In the Cloudflare dashboard, go to **Zero Trust** → **Access Controls** → **Applications**
 
 2. **Add an Application**
    - Click **Add an application** → **Self-hosted**
