@@ -2,9 +2,7 @@
 
 Uptime monitoring that runs on your Cloudflare account. One repo, one deploy, monitoring from the edge in minutes.
 
-<!-- TODO: Deploy to Cloudflare button -->
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/YOUR_USERNAME/vigil)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/gmmurray/vigil)
 
 <!-- TODO: Screenshot of dashboard -->
 
@@ -14,11 +12,11 @@ Uptime monitoring that runs on your Cloudflare account. One repo, one deploy, mo
 
 Vigil is a self-hosted uptime monitoring tool that runs on Cloudflare Workers. It uses Durable Objects for per-monitor scheduling, D1 for persistence, and deploys with a single command. It is built for personal use and shared openly for public benefit.
 
-**Scope:** Designed for 10-100 endpoints—personal projects, small teams, or a handful of client sites. Not built for enterprise multi-tenancy or complex integrations.
+**Scope:** Designed for 10-100 endpoints: personal projects, small teams, or a handful of client sites. Not built for enterprise multi-tenancy or complex integrations.
 
 **Platform:** Cloudflare-native. Workers, Durable Objects, and D1 run on the same edge nodes and communicate through bindings. No containers, no orchestration, no internal API keys.
 
-**Expectations:** Vigil is a personal project shared as open source. It runs entirely inside your Cloudflare account—availability, alert delivery, and data retention depend on your Cloudflare configuration and limits. No SLA, no redundancy across providers, no external watchdog. If Cloudflare has an outage, so does your monitoring.
+**Expectations:** Vigil is a personal project shared as open source. It runs entirely inside your Cloudflare account. Availability, alert delivery, and data retention depend on your Cloudflare configuration and limits. No SLA, no redundancy across providers, no external watchdog. If Cloudflare has an outage, so does your monitoring.
 
 ## Tech Stack
 
@@ -34,12 +32,12 @@ Vigil is a self-hosted uptime monitoring tool that runs on Cloudflare Workers. I
 ## Features
 
 - **HTTP endpoint monitoring** with configurable methods, headers, expected status codes, and timeouts
-- **Smart status detection** — UP, DEGRADED, DOWN, RECOVERING states with consecutive failure thresholds
-- **Automatic incident tracking** — incidents open when services go down and close on recovery
+- **Smart status detection**: UP, DEGRADED, DOWN, RECOVERING states with consecutive failure thresholds
+- **Automatic incident tracking**: incidents open when services go down and close on recovery
 - **Notifications via webhooks** with retry logic and exponential backoff—failed deliveries are logged but not retried indefinitely (notification system is extensible to other channels)
 - **Real-time dashboard** with response time charts and check history
-- **Data retention controls** — automatic cleanup of old check results
-- **Test before you commit** — validate endpoints and notification channels before enabling
+- **Data retention controls**: automatic cleanup of old check results
+- **Test before you commit**: validate endpoints and notification channels before enabling
 
 ## Quick Start
 
@@ -47,15 +45,17 @@ Vigil is a self-hosted uptime monitoring tool that runs on Cloudflare Workers. I
 
 1. Click the **Deploy to Cloudflare** button above
 2. Authenticate with your Cloudflare account
-3. The deployment will create:
-   - A Worker (`vigil`)
-   - A D1 database (`vigil-db`)
-   - The required Durable Object migrations
-4. Once deployed, your instance will be available at `vigil.<your-subdomain>.workers.dev`
+3. Configure your deployment:
+   - **Project name** — defaults to `vigil`, determines your Worker URL
+   - **D1 database** — create a new one or select an existing database
+   - **CHECK_RESULTS_RETENTION_DAYS** — how long to keep check history (default: 15)
+4. Once deployed, your instance will be available at `<project-name>.<your-subdomain>.workers.dev`
+
+The deploy process automatically updates `wrangler.jsonc` in your forked repo with your project name and database configuration.
 
 ## Securing Your Instance
 
-Vigil has no in-app authentication—it's designed to sit behind [Cloudflare Access](https://www.cloudflare.com/zero-trust/products/access/), which handles auth at the network layer before requests ever reach your application. You get SSO, MFA, and device posture checks without adding auth complexity to the application itself.
+Vigil has no in-app authentication. It's designed to sit behind [Cloudflare Access](https://www.cloudflare.com/zero-trust/products/access/), which handles auth at the network layer before requests ever reach your application. You get SSO, MFA, and device posture checks without adding auth complexity to the application itself.
 
 ### Setting Up Cloudflare Access
 
@@ -85,40 +85,17 @@ Once Access is configured, only authenticated users can reach your Vigil instanc
 
 ## Architecture
 
-Vigil runs entirely on Cloudflare's edge infrastructure:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Cloudflare Edge                          │
-│                                                                 │
-│  ┌───────────┐      ┌───────────────┐      ┌───────────┐        │
-│  │  Worker   │ ───▶ │    Durable    │ ───▶ │    D1     │        │
-│  │ (Hono API)│      │    Objects    │      │ (SQLite)  │        │
-│  └───────────┘      └───────────────┘      └───────────┘        │
-│        │                   │                                    │
-│        │            ┌──────┴──────┐                             │
-│        │            │   Alarms    │                             │
-│        │            │ (scheduled  │                             │
-│        │            │   checks)   │                             │
-│        │            └─────────────┘                             │
-│        ▼                                                        │
-│  ┌───────────┐                                                  │
-│  │  Static   │                                                  │
-│  │  Assets   │                                                  │
-│  │(React SPA)│                                                  │
-│  └───────────┘                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+![Vigil Architecture](docs/architecture_diagram.png)
 
 **How it works:**
 
-- **Each monitor gets its own Durable Object.** This provides natural isolation—one misbehaving endpoint can't affect others. The DO manages its own check schedule using Alarms. Checks execute from Cloudflare's edge location hosting the DO instance; Vigil does not fan out checks to multiple regions per endpoint.
+- **Each monitor gets its own Durable Object.** This provides natural isolation: one misbehaving endpoint can't affect others. The DO manages its own check schedule using Alarms. Checks execute from Cloudflare's edge location hosting the DO instance; Vigil does not fan out checks to multiple regions per endpoint.
 
 - **Checks run on a configurable interval** (default: 60 seconds). The Durable Object wakes up, performs the HTTP check, records the result, and goes back to sleep.
 
-- **State transitions are deterministic.** A monitor doesn't flip to DOWN on a single failure—it requires consecutive failures (default: 3) to avoid false positives from transient network issues.
+- **State transitions are deterministic.** A monitor doesn't flip to DOWN on a single failure. It requires consecutive failures (default: 3) to avoid false positives from transient network issues.
 
-- **All data lives in D1.** Check results, incidents, notification logs—everything persists in a SQLite database at the edge.
+- **All data lives in D1.** Check results, incidents, and notification logs all persist in a SQLite database at the edge.
 
 - **A daily cron job cleans up old data.** Check results older than the retention period (default: 15 days) are automatically pruned.
 
@@ -155,7 +132,7 @@ Lower check intervals and longer retention increase Durable Object wakeups and D
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/vigil.git
+git clone https://github.com/gmmurray/vigil.git
 cd vigil
 
 # Install dependencies
@@ -193,15 +170,15 @@ If you prefer deploying manually over the button:
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/YOUR_USERNAME/vigil.git
+git clone https://github.com/gmmurray/vigil.git
 cd vigil
 pnpm install
 
-# 2. Create a D1 database
+# 2. Create a D1 database (use any name you prefer)
 wrangler d1 create vigil-db
 
-# 3. Update wrangler.jsonc with your database_id
-#    (the create command outputs this)
+# 3. Update wrangler.jsonc with your project name, database_id, and database_name
+#    (the create command outputs the database_id)
 
 # 4. Build and deploy
 pnpm deploy
