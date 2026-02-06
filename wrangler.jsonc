@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vigil",
   "main": "./src/worker/index.ts",
-  "compatibility_date": "2026-01-01",
+  "compatibility_date": "2026-02-06",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "CHECK_RESULTS_RETENTION_DAYS": "15"

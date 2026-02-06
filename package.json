@@ -11,7 +11,7 @@
     "dev": "vite",
     "preview": "pnpm run build && vite preview",
     "migrate:local": "wrangler d1 migrations apply DB --local",
-    "migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "migrate:remote": "node ./scripts/set-db-id.js && wrangler d1 migrations apply DB --remote",
     "test": "vitest",
     "test:run": "vitest run"
   },
