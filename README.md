@@ -176,12 +176,14 @@ wrangler d1 create vigil-db
 
 # 3. Update wrangler.jsonc with your project name, database_id, and database_name
 #    (the create command outputs the database_id)
-
+#
 # 4. Build and deploy
 pnpm deploy
 ```
 
 The `pnpm deploy` command runs database migrations and deploys the Worker in one step.
+
+> _If you prefer not to store your `database_id` in version control, you can set `D1_DATABASE_ID` in the Cloudflare Worker dashboard under **Settings** → **Build** → **Variables and secrets**. Make sure to set it here, not under the runtime **Variables and Secrets** configuration. A build script `scripts/set-db-id.js` will set the value in `wrangler.jsonc` to the value of `D1_DATABASE_ID`._
 
 ### Updating an Existing Deployment
 

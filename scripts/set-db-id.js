@@ -4,54 +4,38 @@ import { join } from 'node:path';
 
 const cwd = process.cwd();
 const targetFiles = [
+  'dist/vigil/wrangler.json',
   'wrangler.jsonc',
   'wrangler.json',
   'wrangler.toml',
-  'dist/vigil/wrangler.json',
-  'dist/wrangler.json',
 ];
 
-let patchedCount = 0;
 const realId = process.env.D1_DATABASE_ID;
-const placeholder = 'YOUR_DB_ID_HERE';
 
 if (!realId) {
-  console.log(`[Build Script] No D1_DATABASE_ID in env. Skipping.`);
+  console.log(`[Build Script] No D1_DATABASE_ID found. Skipping.`);
   process.exit(0);
 }
 
-console.log(`[Build Script] searching for config files to patch...`);
+// Regex Breakdown:
+// 1. Key:    Matches "database_id" with optional quotes, optional spacing, and separator (: or =)
+// 2. Value:  Matches anything inside the quotes
+// 3. Quote:  Matches the closing quote
+const dbIdRegex = /(["']?database_id["']?\s*[:=]\s*["'])(.*?)(["'])/g;
 
-for (const relativePath of targetFiles) {
-  const fullPath = join(cwd, relativePath);
-
+targetFiles.forEach(file => {
+  const fullPath = join(cwd, file);
   if (existsSync(fullPath)) {
     try {
-      let config = readFileSync(fullPath, 'utf8');
+      const content = readFileSync(fullPath, 'utf8');
 
-      if (config.includes(placeholder)) {
-        console.log(`[Build Script] Patching ${relativePath}...`);
-        config = config.replaceAll(placeholder, realId);
-        writeFileSync(fullPath, config);
-        patchedCount++;
-      } else {
-        console.log(
-          `[Build Script] ${relativePath} found but no placeholder to replace.`,
-        );
+      if (dbIdRegex.test(content)) {
+        const newContent = content.replace(dbIdRegex, `$1${realId}$3`);
+        writeFileSync(fullPath, newContent);
+        console.log(`[Build Script] Patched database_id in ${file}`);
       }
-    } catch (err) {
-      console.warn(
-        `[Build Script] Failed to patch ${relativePath}:`,
-        err.message,
-      );
+    } catch (e) {
+      console.warn(`[Build Script] Error patching ${file}:`, e.message);
     }
   }
-}
-
-if (patchedCount === 0) {
-  console.warn(
-    `[Build Script] WARNING: No files were patched! Check your paths.`,
-  );
-} else {
-  console.log(`[Build Script] Success! Patched ${patchedCount} file(s).`);
-}
+});
