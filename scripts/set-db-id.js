@@ -2,12 +2,12 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { join } from 'node:path';
 
-const configPath = join(process.cwd(), 'wrangler.toml');
+const configPath = join(process.cwd(), 'wrangler.jsonc');
 
 try {
   if (!existsSync(configPath)) {
     console.error(
-      `[Build Script] Error: wrangler.toml not found at ${configPath}`,
+      `[Build Script] Error: wrangler.jsonc not found at ${configPath}`,
     );
     process.exit(1);
   }
@@ -19,13 +19,13 @@ try {
 
   if (realId && config.includes(placeholder)) {
     console.log(
-      `[Build Script] Found D1_DATABASE_ID. Injecting into wrangler.toml...`,
+      `[Build Script] Found D1_DATABASE_ID. Injecting into wrangler.jsonc...`,
     );
 
     config = config.replaceAll(placeholder, realId);
 
     writeFileSync(configPath, config);
-    console.log(`[Build Script] Success: wrangler.toml patched.`);
+    console.log(`[Build Script] Success: wrangler.jsonc patched.`);
   } else {
     console.log(
       `[Build Script] No ID injection performed (Env var missing or placeholder already removed).`,
