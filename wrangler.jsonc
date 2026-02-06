@@ -4,6 +4,8 @@
   "main": "./src/worker/index.ts",
   "compatibility_date": "2026-02-06",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
   "vars": {
     "CHECK_RESULTS_RETENTION_DAYS": "15"
   },
