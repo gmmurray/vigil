@@ -1,12 +1,14 @@
+<p align="center">
+
+![Vigil Logo](public/logo_transparent.png)
+
 # Vigil
+
+</p>
 
 Uptime monitoring that runs on your Cloudflare account. One repo, one deploy, monitoring from the edge in minutes.
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/gmmurray/vigil)
-
-<!-- TODO: Screenshot of dashboard -->
-
-![Vigil Dashboard](docs/screenshot.png)
 
 ## Overview
 
