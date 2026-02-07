@@ -1,12 +1,14 @@
 <p align="center">
-
-![Vigil Logo](public/logo_transparent.png)
-
-# Vigil
-
+   <img src="https://raw.githubusercontent.com/gmmurray/vigil/main/public/logo_transparent.png" alt="Vigil Logo" width="300">
 </p>
 
-Uptime monitoring that runs on your Cloudflare account. One repo, one deploy, monitoring from the edge in minutes.
+<h1 align="center">Vigil</h1>
+
+<p align="center">
+   Uptime monitoring that runs on your Cloudflare account. One repo, one deploy, monitoring from the edge in minutes.
+</p>
+
+---
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/gmmurray/vigil)
 
